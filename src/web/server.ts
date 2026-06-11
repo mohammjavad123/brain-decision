@@ -227,13 +227,22 @@ server.listen(PORT, async () => {
     console.log(`  ✗ embedding model FAILED: ${(e as Error).message}`);
   }
 
+  // is the LLM key for the configured provider present? (needed to seed + to answer)
+  const keyOk = config.llmProvider === "gemini" ? !!config.geminiKey : !!config.openaiKey;
+  const keyName = config.llmProvider === "gemini" ? "GEMINI_API_KEY" : "OPENAI_API_KEY";
+
   // 2. database — open the PGlite store; if the brain is EMPTY, build it once (same process, no conflict)
   try {
     let c = await counts();
     if (c.facts === 0) {
-      console.log("  ◷ empty brain — seeding from the corpus (first run; ~1-2 min)…");
-      await seed({ log: (m) => console.log("      " + m) });
-      c = await counts();
+      if (!keyOk) {
+        console.log(`  ⚠ memory is empty and no ${keyName} is set — cannot seed.`);
+        console.log(`      → copy .env.example to .env, add your ${keyName}, then run \`npm start\` again.`);
+      } else {
+        console.log("  ◷ empty brain — seeding from the corpus (first run; ~1-2 min)…");
+        await seed({ log: (m) => console.log("      " + m) });
+        c = await counts();
+      }
     }
     console.log(`  ✓ database ready                    ${c.facts} facts · ${c.signals} signals · ${c.positions} positions · ${c.decisions} decisions`);
   } catch (e) {
@@ -241,8 +250,7 @@ server.listen(PORT, async () => {
   }
 
   // 3. LLM seams (remote — nothing to preload, just report config + key/tool presence)
-  const keyOk = config.llmProvider === "gemini" ? !!config.geminiKey : !!config.openaiKey;
-  console.log(`  ${keyOk ? "✓" : "✗"} LLM seams (${config.llmProvider})            extract=${config.extractModel} · compose=${config.composeModel} · synthesize=${config.synthesizeModel}`);
+  console.log(`  ${keyOk ? "✓" : "✗"} LLM seams (${config.llmProvider})            ${keyOk ? `extract=${config.extractModel} · compose=${config.composeModel} · synthesize=${config.synthesizeModel}` : `no ${keyName} set — add it to .env`}`);
   console.log(`  ${researchAvailable() ? "✓" : "○"} web research                      ${researchAvailable() ? "TAVILY_API_KEY set" : "no TAVILY_API_KEY (research degrades honestly)"}`);
 
   const uiReady = existsSync(join(UI_DIR, "index.html"));
