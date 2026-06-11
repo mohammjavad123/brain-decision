@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+*.tsbuildinfo
+
+# local memory store (PGlite data dir) — re-created by `npm run seed`
+.data/
+data/db/
+
+# transformers.js model cache
+.cache/

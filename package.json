@@ -1,0 +1,40 @@
+{
+  "name": "decision-brain",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A decision brain for a scaling CEO — reads the week, builds bi-temporal cited memory, researches gaps, recommends a defensible decision. LLMs at the seams, algorithms in the path.",
+  "scripts": {
+    "start": "npm --prefix web install --silent --no-audit --no-fund && npm --prefix web run build && tsx src/web/server.ts",
+    "build:web": "npm --prefix web run build",
+    "seed": "tsx src/cli.ts seed",
+    "ask": "tsx src/cli.ts ask",
+    "decisions": "tsx src/cli.ts decisions",
+    "resolve": "tsx src/cli.ts resolve",
+    "inspect": "tsx src/cli.ts inspect",
+    "mcp": "tsx src/mcp/server.ts",
+    "smoke": "tsx scripts/smoke.ts",
+    "dashboard": "tsx src/dashboard.ts",
+    "web": "tsx src/web/server.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
+    "@electric-sql/pglite": "^0.2.17",
+    "@langchain/langgraph": "^1.4.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@xenova/transformers": "^2.17.2",
+    "dotenv": "^17.4.2",
+    "gray-matter": "^4.0.3",
+    "openai": "^6.42.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}
