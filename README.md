@@ -19,13 +19,18 @@ A **decision brain** for a scaling CEO. Drop in a founder's week (calls, emails,
 
 ## Run it — one command
 
+**Prerequisites:** Node **20+** and **one LLM key** (a free [Google AI Studio](https://aistudio.google.com/apikey) Gemini key works great). That's all — no Docker, no database to install, no second key.
+
 ```bash
-npm install                 # root deps
-cp .env.example .env        # add your keys (see below)
-npm start                   # builds the UI + starts everything, then open the URL it prints
+git clone https://github.com/mohammjavad123/brain-decision && cd brain-decision
+npm install                                   # root deps (pinned by package-lock.json)
+cp .env.example .env && echo "add your GEMINI_API_KEY to .env"   # then paste your key into .env
+npm start                                     # the one command — builds UI, seeds, serves
 ```
 
-Then open **http://localhost:8787**. That's it — **one process serves the React UI *and* the API on one port**, and **seeds the brain from `data/corpus/` automatically on first run** (~1–2 min; subsequent starts are instant).
+Then open **http://localhost:8787**. `npm start` is self-contained: it installs the UI's deps, builds the React app, **serves the UI *and* the API on one port**, and **seeds the brain from `data/corpus/` automatically on first run**.
+
+**What to expect on first run (~2–3 min, once):** it downloads the local embedding model (~110 MB, no key) and runs the write-time pipeline over Maya's 14-item week with your key. You'll see it build live in the console (`extract → connect → signals → positions`). Every later start is instant (the brain is cached in `.data/`). If you started with no key, it tells you exactly what to add and exits gracefully.
 
 ### `.env`
 
@@ -50,6 +55,12 @@ npm run eval       # acceptance eval — scores Q1–Q4 against ground truth
 npm run mcp        # the MCP agent surface (stdio)      [server must be DOWN]
 npm run inspect    # dump facts / entities / signals / positions
 ```
+
+### Troubleshooting
+- **"Port 8787 already in use"** — a server is already running. `lsof -ti:8787 | xargs kill`, or `WEB_PORT=8788 npm start`.
+- **"memory is empty and no …_KEY is set"** — add your key to `.env` and re-run `npm start`.
+- **Single-process DB** — memory is PGlite (in-process). Don't run `npm run seed` *while* `npm start` is up; to change memory at runtime use the UI's **clean memory** / **Ingest** buttons instead.
+- **Start fresh** — delete `.data/` and restart; it re-seeds.
 
 ---
 
