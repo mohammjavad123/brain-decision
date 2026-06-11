@@ -31,6 +31,7 @@ const downgrade = (c: Conf): Conf => (c === "high" ? "medium" : "low");
 const S = Annotation.Root({
   question: Annotation<string>(),
   refinedQuery: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
+  inScope: Annotation<boolean>({ reducer: (_, b) => b, default: () => true }),
   retrieved: Annotation<Retrieved | null>({ reducer: (_, b) => b, default: () => null }),
   gaps: Annotation<string[]>({ reducer: (_, b) => b, default: () => [] }),
   need: Annotation<Need>({ reducer: (_, b) => b, default: () => "answer" }),
@@ -47,10 +48,36 @@ const S = Annotation.Root({
 });
 type State = typeof S.State;
 
-// refine — LLM rewrites the question into a better retrieval query (B)
+// refine — the root agent's intake: judge scope, then rewrite the question into a retrieval query (B)
 async function refineNode(state: State): Promise<Partial<State>> {
   const r = await refineQuery(state.question);
-  return { refinedQuery: r.query };
+  return { refinedQuery: r.query, inScope: r.in_scope };
+}
+
+// the root agent recognizes an out-of-scope question and declines instead of running the whole pipeline
+function routeAfterRefine(state: State): "retrieve" | "decline" {
+  return state.inScope ? "retrieve" : "decline";
+}
+
+async function declineNode(state: State): Promise<Partial<State>> {
+  const decision: Decision = {
+    id: newId("dec"),
+    question: state.question,
+    answer:
+      "That's outside what I track. I'm a decision brain for your company's week — ask me about ICP, runway, " +
+      "deals, objections, competitors, the team, or fundraising.",
+    confidence: "low",
+    evidence: [],
+    contradiction_ids: [],
+    research_fact_ids: [],
+    gaps: [],
+    recommendation: "Ask about the company's strategy, finances, pipeline, or competitors.",
+    status: "pending",
+    human_note: null,
+    created_at: nowIso(),
+    resolved_at: null,
+  };
+  return { decision }; // not logged — a decline isn't a recommendation
 }
 
 // retrieve — DETERMINISTIC: vector anchors + dimension-complete + light graph expansion (no LLM)
@@ -152,6 +179,7 @@ async function logNode(state: State): Promise<Partial<State>> {
 
 const graph = new StateGraph(S)
   .addNode("refine", refineNode)
+  .addNode("decline", declineNode)
   .addNode("retrieve", retrieveNode)
   .addNode("deepen", deepenNode)
   .addNode("assess", assessNode)
@@ -160,7 +188,8 @@ const graph = new StateGraph(S)
   .addNode("verify", verifyNode)
   .addNode("log", logNode)
   .addEdge(START, "refine")
-  .addEdge("refine", "retrieve")
+  .addConditionalEdges("refine", routeAfterRefine, { retrieve: "retrieve", decline: "decline" })
+  .addEdge("decline", END)
   .addEdge("retrieve", "assess")
   .addConditionalEdges("assess", routeAfterAssess, { deepen: "deepen", research: "research", synthesize: "synthesize" })
   .addEdge("deepen", "assess")
@@ -185,7 +214,8 @@ export type AgentEvent = { node: string; phase: "active" | "done"; label: string
 function activeLabel(node: string): string {
   return (
     {
-      refine: "refining the query for search…",
+      refine: "reading the question · is it in scope?…",
+      decline: "out of scope — declining politely…",
       retrieve: "reading compiled memory (vector + graph)…",
       deepen: "expanding the memory graph one hop…",
       assess: "deciding — answer, dig deeper, or research?…",
@@ -199,7 +229,8 @@ function activeLabel(node: string): string {
 
 function doneLabel(node: string, u: Partial<State>): string {
   switch (node) {
-    case "refine": return `query → "${u.refinedQuery ?? ""}"`;
+    case "refine": return u.inScope === false ? "out of scope" : `in scope · query → "${u.refinedQuery ?? ""}"`;
+    case "decline": return "declined — not in this brain's memory";
     case "retrieve": return `read memory → ${u.retrieved?.position?.name ?? "no position"} · ${u.retrieved?.facts?.length ?? 0} facts`;
     case "deepen": return `expanded graph (hop ${u.depth ?? "?"}) → ${u.retrieved?.facts?.length ?? 0} facts${u.memoryExhausted ? " · neighborhood exhausted" : ""}`;
     case "assess": return u.need === "answer" ? "enough to answer" : u.need === "deeper_memory" ? "dig deeper in memory" : "research the web";
@@ -234,7 +265,8 @@ function detailFor(node: string, u: Partial<State>): string[] {
 
 function predictNext(node: string, u: Partial<State>, st: { rounds: number; depth: number; exhausted: boolean }): string | null {
   switch (node) {
-    case "refine": return "retrieve";
+    case "refine": return u.inScope === false ? "decline" : "retrieve";
+    case "decline": return null;
     case "retrieve":
     case "deepen": return "assess";
     case "assess":

@@ -8,10 +8,12 @@ import { config } from "../config.js";
  * actually read (e.g. "which objection is killing deals" → "sales objection budget authority sign-off
  * approval blocking deals"). Improves recall before the deterministic retrieval runs.
  */
-const SYSTEM = `Rewrite a CEO's question into a short SEMANTIC SEARCH query over the startup's own notes,
-calls, emails, and typed facts. Use the concrete words those sources would actually use (a founder's or
-salesperson's vocabulary, synonyms). No question marks, no fluff. Then one line: what good evidence to
-answer this looks like.`;
+const SYSTEM = `You are the intake step of a company decision brain. First decide if the question is IN SCOPE —
+about the founder's own business held in memory (strategy, ICP, runway/finances, deals, objections,
+competitors, team, product, customers). General questions (weather, world trivia, coding help, chit-chat)
+are OUT of scope. Then rewrite an in-scope question into a short SEMANTIC SEARCH query over the startup's
+notes/calls/emails/facts — the concrete words those sources would use (no question marks, no fluff) — and
+one line on what good evidence looks like. (For out-of-scope questions, still return a best-effort query.)`;
 
 export async function refineQuery(question: string): Promise<RefinedQuery> {
   return structured({

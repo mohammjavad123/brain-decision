@@ -100,6 +100,13 @@ export type SynthesizedAnswer = z.infer<typeof SynthesizedAnswer>;
 
 // ─── Refine: rewrite the question into a better retrieval query (B) ──
 export const RefinedQuery = z.object({
+  in_scope: z
+    .boolean()
+    .describe(
+      "Is this question IN SCOPE for a company decision brain — about the founder's business captured in memory " +
+        "(strategy, ICP, runway/finances, deals/pipeline, objections, competitors, team, product, customers)? " +
+        "General questions (weather, world trivia, coding help, chit-chat) are OUT of scope → false.",
+    ),
   query: z.string().describe("a concise semantic-search query over the founder's notes/calls/facts — expand to the concrete vocabulary those notes likely use"),
   looking_for: z.string().describe("one line: what good evidence to answer this question looks like"),
 });
