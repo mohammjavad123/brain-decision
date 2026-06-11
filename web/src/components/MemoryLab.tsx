@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { IngestData, IngestStep } from "../types";
 import { loadCorpusText } from "../api";
+import { EXAMPLE_1, EXAMPLE_2, EXAMPLE_3 } from "../examples";
 
 const STAGES = [
   { key: "parse", label: "Parse", sub: "text → source" },
@@ -9,45 +10,6 @@ const STAGES = [
   { key: "signals", label: "Signals", sub: "cluster · promote" },
   { key: "positions", label: "Positions", sub: "drift-aware stance" },
 ] as const;
-
-const EXAMPLE = `---
-id: note/weekly-exec-sync
-type: note
-date: 2026-06-09
-author: Maya Chen
-participants: [Maya Chen, Priya Nair, Devin Park]
----
-Weekly exec sync — Loomwork. Present: Maya Chen (CEO), Priya Nair (Head of Sales), Devin Park (CTO).
-
-ICP / market
-Maya: On paper our ICP is still mid-market logistics operators running 50 to 500 trucks, sold self-serve.
-Priya: Reality is drifting. Three of my last five qualified deals were enterprise carriers with more than 2,000 trucks, and they came inbound.
-Maya: But we have not formally redefined the ICP — leadership hasn't signed off on moving upmarket, so officially we are still a mid-market company.
-Priya: The enterprise deals are bigger but procurement is brutal — they want SSO, a signed DPA, and data residency before they will even pilot.
-Devin: If we chase enterprise we have to staff it. That is a real go-to-market change, not a tweak.
-
-Deals / the objection
-Priya: The thing killing mid-market deals is almost never the product. It is budget authority — the champion loves us, then it stalls at the VP or finance sign-off.
-Priya: At Ringer Logistics, Dana Okonkwo told me point blank she cannot approve anything over ten thousand dollars without her VP and procurement.
-Priya: Same shape at Meridian Logistics and at Crossdock Group — the person who loves the product is one level below the person who controls the spend.
-Maya: So it is a recurring, cross-account pattern, not a one-off. Budget authority sitting a level above our champion.
-
-Competition
-Priya: We lost Halberd Freight to FreightPilot this quarter. That is the third deal we have lost to FreightPilot.
-Maya: FreightPilot keeps coming up, and prospects say we look similar to them from the outside.
-Devin: We should be honest that FreightPilot is our most common competitive loss right now.
-
-Renewals
-Priya: Heads up — two mid-market renewals are looking shaky and could slip if we do not get ahead of them.
-
-Runway / finance
-Devin: At the May board meeting we reported eighteen months of runway at our then-current burn.
-Devin: Since then we closed two senior engineering hires, which pushed monthly burn up materially, so that eighteen-month figure is already stale.
-Devin: If we proceed with the two account-executive hires Priya wants, runway tightens to roughly nine months.
-Maya: So the runway number I can defend to the board depends entirely on whether we greenlight the AE hires.
-
-Follow-ups
-Maya: I will prep the board update with both runway scenarios. Priya owns a plan to get mid-market deals under the sign-off threshold. Devin recalculates burn after the engineering hires before Friday.`;
 
 const COLORS: Record<string, string> = { person: "#60a5fa", company: "#34d399", competitor: "#f87171", investor: "#fbbf24" };
 const PROMO: Record<string, string> = { decision_grade: "#34d399", validated: "#60a5fa", emerging: "#fbbf24", candidate: "#64748b" };
@@ -153,9 +115,11 @@ export function MemoryLab({
       <div className="card">
         <div className="mlhead">
           <strong>Paste raw items</strong>
-          <span className="muted">one or many — each with its own <code>--- id/type ---</code> header; they add to memory</span>
-          <button className="link" disabled={busy} onClick={() => setSrc(EXAMPLE)}>load example</button>
-          <button className="link" disabled={busy} onClick={async () => setSrc(await loadCorpusText())}>load corpus</button>
+          <span className="muted">one or many — each with its own <code>--- id/type ---</code> header. <b>Clean memory</b> between test cases.</span>
+          <button className="link" disabled={busy} onClick={() => setSrc(EXAMPLE_1)}>Example 1 · Northwind (runway)</button>
+          <button className="link" disabled={busy} onClick={() => setSrc(EXAMPLE_2)}>Example 2 · Bistro POS (objection)</button>
+          <button className="link" disabled={busy} onClick={() => setSrc(EXAMPLE_3)}>Example 3 · Cedar Health (gaps)</button>
+          <button className="link" disabled={busy} onClick={async () => setSrc(await loadCorpusText())}>Maya corpus</button>
           <button
             className="link danger"
             disabled={busy}
