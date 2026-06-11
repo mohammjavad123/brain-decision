@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { IngestData, IngestStep } from "../types";
 import { loadCorpusText } from "../api";
-import { EXAMPLE_1, EXAMPLE_2, EXAMPLE_3 } from "../examples";
+import { EXAMPLES, type Example } from "../examples";
 
 const STAGES = [
   { key: "parse", label: "Parse", sub: "text → source" },
@@ -101,6 +101,16 @@ export function MemoryLab({
   steps, busy, onIngest, onReset,
 }: { steps: IngestStep[]; busy: boolean; onIngest: (src: string) => void; onReset: () => void }) {
   const [src, setSrc] = useState("");
+  // which example is loaded — drives the "suggested questions" panel (the three we validated)
+  const [loaded, setLoaded] = useState<Example | null>(null);
+  const [copied, setCopied] = useState<string | null>(null); // last question copied to the clipboard
+
+  function copyQ(q: string) {
+    navigator.clipboard?.writeText(q).then(() => {
+      setCopied(q);
+      setTimeout(() => setCopied((c) => (c === q ? null : c)), 1400);
+    });
+  }
   // each stage's done event carries its own data slice; merge them into one accumulated view
   const acc = useMemo(() => steps.reduce<IngestData>((a, s) => (s.data ? { ...a, ...s.data } : a), {}), [steps]);
   const traceLines = useMemo(
@@ -116,14 +126,16 @@ export function MemoryLab({
         <div className="mlhead">
           <strong>Paste raw items</strong>
           <span className="muted">one or many — each with its own <code>--- id/type ---</code> header. <b>Clean memory</b> between test cases.</span>
-          <button className="link" disabled={busy} onClick={() => setSrc(EXAMPLE_1)}>Example 1 · Northwind (runway)</button>
-          <button className="link" disabled={busy} onClick={() => setSrc(EXAMPLE_2)}>Example 2 · Bistro POS (objection)</button>
-          <button className="link" disabled={busy} onClick={() => setSrc(EXAMPLE_3)}>Example 3 · Cedar Health (gaps)</button>
-          <button className="link" disabled={busy} onClick={async () => setSrc(await loadCorpusText())}>Maya corpus</button>
+          {EXAMPLES.map((ex) => (
+            <button key={ex.id} className="link" disabled={busy} onClick={() => { setSrc(ex.corpus); setLoaded(ex); }}>
+              Example {ex.id} · {ex.name} ({ex.tag})
+            </button>
+          ))}
+          <button className="link" disabled={busy} onClick={async () => { setSrc(await loadCorpusText()); setLoaded(null); }}>Maya corpus</button>
           <button
             className="link danger"
             disabled={busy}
-            onClick={() => { if (confirm("Wipe the ENTIRE memory (facts, signals, positions, decisions) and start fresh?")) onReset(); }}
+            onClick={() => { if (confirm("Wipe the ENTIRE memory (facts, signals, positions, decisions) and start fresh?")) { onReset(); setLoaded(null); } }}
           >
             clean memory
           </button>
@@ -142,6 +154,27 @@ export function MemoryLab({
           <span className="muted small">runs the full Phase-1 spine: extract → connect → signals → positions</span>
         </div>
       </div>
+
+      {/* the three validated questions for the loaded example — one click runs it in the Ask tab */}
+      {loaded && (
+        <div className="card askpanel">
+          <div className="mlhead">
+            <strong>Ask these three</strong>
+            <span className="muted">the questions this case is built to answer — click to copy, then paste into <b>Ask the brain</b>.</span>
+          </div>
+          <div className="qlist">
+            {loaded.questions.map((qq) => (
+              <button key={qq.q} className="qcard" onClick={() => copyQ(qq.q)} title="Copy question">
+                <span className="qtext">{qq.hero && <span className="herostar">★</span>}{qq.q}</span>
+                <span className="qfoot">
+                  <span className="qprobe">{qq.probes}</span>
+                  <span className="qcopy">{copied === qq.q ? "✓ copied" : "copy"}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* pipeline stepper */}
       {steps.length > 0 && (

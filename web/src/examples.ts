@@ -125,6 +125,13 @@ participants: []
 ---
 shipping our v2 arm next month — faster, quieter, lighter, and built in-house now 🦾`;
 
+// The three questions we validated against this corpus (see docs/TEST-CASES.md). ★ = the hero for the case.
+export const QUESTIONS_1 = [
+  { q: "What runway can I defend to the board?", probes: "contradiction + gap", hero: true },
+  { q: "Should we sign both enterprise pilots given the runway?", probes: "conditional trade-off", hero: false },
+  { q: "What post-raise runway buffer do Series-A robotics startups aim for?", probes: "web research", hero: false },
+] as const;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ② Bistro POS — signal aggregation + entity resolution + the evidence bar ("is it real?").
 // The accounting/QuickBooks objection recurs across FIVE restaurants, each phrased differently (keywords
@@ -224,6 +231,12 @@ Sales sync — Maria Lopez's pipeline: Luna, Corner Cafe, Harbor, Oak Tavern, an
 risk this week. The common thread by far is the accounting / QuickBooks integration. Pinecone is a maybe (price),
 River is positive (minor onboarding note).`;
 
+export const QUESTIONS_2 = [
+  { q: "Which objection is killing deals — and is it real?", probes: "signal · is-it-real", hero: true },
+  { q: "Which competitor comes up most across our deals?", probes: "entity recurrence", hero: false },
+  { q: "What should we build next to unblock the pipeline?", probes: "signal → action", hero: false },
+] as const;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ③ Cedar Health — honesty / never-invent / decline (Michael's watch-item).
 // Rich on product + a clearly-evidenced pain (app slowness, corroborated across 2 clinics + 11 tickets),
@@ -314,3 +327,18 @@ participants: [procurement]
 ---
 Maple Hospital (procurement): "what's your enterprise pricing, per-bed or per-provider?" We said we'd follow up
 with a proposal — we don't have a published enterprise price yet. They want numbers before the next meeting.`;
+
+export const QUESTIONS_3 = [
+  { q: "What should our enterprise pricing be?", probes: "never-invent", hero: true },
+  { q: "What's the weather in Amsterdam?", probes: "scope decline", hero: false },
+  { q: "What's the main product pain point?", probes: "answerable control", hero: false },
+] as const;
+
+// One registry the UI iterates over — corpus + its three validated questions, in load order.
+export type ExampleQuestion = { q: string; probes: string; hero: boolean };
+export type Example = { id: number; name: string; tag: string; corpus: string; questions: readonly ExampleQuestion[] };
+export const EXAMPLES: Example[] = [
+  { id: 1, name: "Northwind", tag: "runway", corpus: EXAMPLE_1, questions: QUESTIONS_1 },
+  { id: 2, name: "Bistro POS", tag: "objection", corpus: EXAMPLE_2, questions: QUESTIONS_2 },
+  { id: 3, name: "Cedar Health", tag: "gaps", corpus: EXAMPLE_3, questions: QUESTIONS_3 },
+];
