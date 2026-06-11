@@ -22,7 +22,8 @@ export async function refineQuery(question: string): Promise<RefinedQuery> {
     schema: RefinedQuery,
     toolName: "refine",
     toolDescription: "Rewrite the question into a retrieval query and what good evidence looks like.",
-    model: config.answerModel,
-    maxTokens: 300,
+    model: config.refineModel, // tiniest/fastest — intake is just scope + a query rewrite
+    maxTokens: 768,
+    reasoningEffort: "low",
   });
 }

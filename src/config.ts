@@ -17,8 +17,9 @@ export const config = {
   tavilyKey: process.env.TAVILY_API_KEY ?? "",
   extractModel: process.env.EXTRACT_MODEL ?? (isG ? "gemini-2.5-flash" : "gpt-4o"), // write-time: extract typed facts (volume → cheap/fast)
   composeModel: process.env.COMPOSE_MODEL ?? (isG ? "gemini-2.5-pro" : "gpt-4o"), // write-time: compile positions (reasoning → stronger)
-  answerModel: process.env.ANSWER_MODEL ?? (isG ? "gemini-2.5-flash" : "gpt-4o"), // answer-time: refine + assess (cheap/fast)
-  synthesizeModel: process.env.SYNTHESIZE_MODEL ?? (isG ? "gemini-2.5-pro" : "gpt-4o"), // the decision point: deep reconcile/staleness reasoning → stronger
+  answerModel: process.env.ANSWER_MODEL ?? (isG ? "gemini-2.5-flash" : "gpt-4o"), // answer-time: assess + research (cheap/fast)
+  refineModel: process.env.REFINE_MODEL ?? (isG ? "gemini-2.5-flash-lite" : "gpt-4o-mini"), // intake: scope + query rewrite (tiniest/fastest)
+  synthesizeModel: process.env.SYNTHESIZE_MODEL ?? (isG ? "gemini-2.5-pro" : "gpt-4o"), // the decision point — Pro for calibration, with bounded thinking (reasoning_effort) for speed; set SYNTHESIZE_MODEL=gemini-2.5-flash to shave more latency
   dataDir: process.env.DATA_DIR ?? "./.data/brain",
   corpusDir: process.env.CORPUS_DIR ?? "./data/corpus",
 } as const;

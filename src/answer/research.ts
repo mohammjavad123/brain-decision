@@ -39,7 +39,8 @@ export async function researchGap(
     toolName: "record_findings",
     toolDescription: "Record only findings that directly fill the gap, each with a verbatim quote.",
     model: config.answerModel, // answer-time → fast model
-    maxTokens: 1500,
+    maxTokens: 2048,
+    reasoningEffort: "low",
   });
 
   const facts: Fact[] = [];
