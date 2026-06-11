@@ -5,6 +5,7 @@ import { extractFromSource } from "./extract.js";
 import { embed } from "../llm/embed.js";
 import { insertSource, insertFact, sourceExistsByHash, insertMention, insertRelationship } from "../db/queries.js";
 import { newId, nowIso, normalizeWs } from "../util.js";
+import { canonicalDimension } from "../dimension.js";
 
 export type EntityMention = { name: string; type: EntityType; source_id: string };
 export type Relationship = { subject: string; predicate: string; object: string; source_id: string };
@@ -32,17 +33,6 @@ function locateQuote(body: string, quote: string): { start: number; end: number 
  * themes so contradiction detection + signal grouping never depend on LLM tagging consistency.
  * (LLM at the seam proposes; an algorithm in the path canonicalizes.)
  */
-function canonicalDimension(text: string, llm: string | null): string | null {
-  const t = text.toLowerCase();
-  // explicit ICP references win first — so "not our ICP: enterprise" stays ICP, not budget
-  if (/\bicp\b|ideal customer|not our icp|target (market|customer|segment)/.test(t)) return "icp";
-  if (/\brunway\b|\bburn\b|months? of (cash|runway)|cash (left|out|runway)/.test(t)) return "runway";
-  if (/\bbudget\b|sign-?off|approv|procurement|spend authority|purchase order/.test(t)) return "budget_authority";
-  if (/mid-?market|enterprise|upmarket|self-?serve|moving up/.test(t)) return "icp";
-  if (/freightpilot|losing to|\bcompete\b|competitor/.test(t)) return "competitor";
-  return llm;
-}
-
 // coerce free-string LLM enum outputs to the canonical vocabulary (a near-miss never drops a source)
 const coerceType = (s: string): FactType => {
   const r = FactType.safeParse(s.trim().toLowerCase());

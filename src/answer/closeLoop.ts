@@ -1,6 +1,7 @@
 import { embedOne } from "../llm/embed.js";
 import { resolveDecision, getDecision, insertSource, insertFact } from "../db/queries.js";
 import { newId, nowIso, sha256 } from "../util.js";
+import { canonicalDimension } from "../dimension.js";
 import type { Fact, Source } from "../schema/index.js";
 
 /**
@@ -14,16 +15,8 @@ import type { Fact, Source } from "../schema/index.js";
  * (bi-temporal), and the new fact carries the decision as its provenance source.
  */
 
-const DIMENSION_HINTS: [RegExp, string][] = [
-  [/runway|burn|cash|raise|fundrais|months? left/, "runway"],
-  [/icp|mid-?market|enterprise|upmarket|segment|self-serve/, "icp"],
-  [/pricing|price|budget|discount|sign-?off|authority/, "pricing"],
-];
-function inferDimension(question: string): string | null {
-  const s = question.toLowerCase();
-  for (const [re, dim] of DIMENSION_HINTS) if (re.test(s)) return dim;
-  return null;
-}
+// dimension is classified by the ONE shared canonical function (see ../dimension.ts) — so a folded
+// decision lands on the SAME bucket as the facts that produced it.
 
 export async function resolveAndFold(
   id: string,
@@ -67,7 +60,7 @@ export async function resolveAndFold(
     location_end: null,
     confidence: verdict === "approved" ? 0.95 : 0.9,
     evidence_tier: "E5", // a human-ratified decision is decision-grade evidence
-    dimension: inferDimension(existing.question),
+    dimension: canonicalDimension(existing.question),
     qualifier: verdict === "rejected" ? "founder rejected this recommendation" : null,
     comparable: null,
     valid_time: at,

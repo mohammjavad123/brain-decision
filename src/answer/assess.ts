@@ -19,9 +19,11 @@ from company memory (plus any web research already folded in), pick the NEXT ste
 - "research_web"  — the gap needs EXTERNAL / public info (benchmarks, market norms, how others do it);
                     list the specific web-answerable gaps.
 
-Never research private/internal data (exact burn, internal metrics) — that stays an honest unknown.
-A contradiction is reconciled when answering, not researched. Prefer "answer"; only deepen or research
-when it would actually change the answer.`;
+Only research GENERIC external facts (market norms, "what do others typically do", public benchmarks). NEVER
+research (a) private/internal data — exact burn, churn, internal metrics — or (b) company-specific STRATEGIC
+questions like "what should WE price / position / build" — those need internal discovery, not a web benchmark,
+so they stay honest unknowns ("answer", with the gap flagged). A contradiction is reconciled when answering,
+not researched. Prefer "answer"; only deepen or research when it would actually change the answer.`;
 
 function bundle(question: string, r: Retrieved, researchFacts: Fact[]): string {
   const parts: string[] = [`QUESTION: ${question}`];
@@ -53,7 +55,8 @@ export async function assessSufficiency(
     toolName: "assess",
     toolDescription: "Decide: answer, search memory deeper, or research the web — with one-line reasoning.",
     model: config.answerModel, // answer-time → fast model
-    maxTokens: 500,
+    maxTokens: 1200, // room for low thinking + the JSON (Gemini counts thinking against max_tokens)
+    reasoningEffort: "low", // a 3-way decision — minimal thinking is plenty
   });
   return { need: j.need as Need, gaps: j.research_gaps ?? [], reasoning: j.reasoning };
 }

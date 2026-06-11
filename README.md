@@ -98,7 +98,7 @@ An explicit state machine (LangGraph). **`assess` is the hub** every path return
 | **verify** *(algorithm)* | every cited fact must resolve to a real fact, else loop back |
 | **log** | write the decision to the append-only log, pending the human verdict |
 
-Bounded by convergence + depth/round caps. **No autonomous side-effects.**
+It's a **bounded** adaptive loop: `assess` *can* deepen or research repeatedly, but on a small corpus the neighbourhood is usually pulled in one hop — so in practice it runs **retrieve → assess → (maybe one deepen/research) → synthesize**. Bounded by convergence + depth/round caps. **No autonomous side-effects.**
 
 **Closing the loop (Step 5).** When the human **approves or rejects** a recommendation, the verdict is recorded **and** the outcome is folded **back into memory** — appended as a **decision-grade (E5) fact** whose source is the decision itself. It's deterministic (no LLM, just one embedding), so the next related question retrieves it via the same similarity + dimension paths. *memory → decision → recorded outcome → back into memory.*
 

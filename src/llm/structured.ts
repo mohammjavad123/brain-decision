@@ -18,6 +18,29 @@ function client(): OpenAI {
 
 type Msg = { role: "system" | "user"; content: string };
 
+/**
+ * Extract the FIRST complete, balanced JSON object from a string — string/escape aware — and ignore
+ * anything before or after it. Gemini's json mode occasionally emits a note, a second object, or stray
+ * text around the object; naive JSON.parse then throws "non-whitespace after JSON". This cuts cleanly
+ * at the first object's matching close brace. Returns null if no balanced object is present (truncated).
+ */
+export function firstJsonObject(s: string): string | null {
+  const start = s.indexOf("{");
+  if (start < 0) return null;
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < s.length; i++) {
+    const ch = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === "\\") esc = true;
+      else if (ch === '"') inStr = false;
+    } else if (ch === '"') inStr = true;
+    else if (ch === "{") depth++;
+    else if (ch === "}" && --depth === 0) return s.slice(start, i + 1);
+  }
+  return null;
+}
+
 export async function structured<T>(opts: {
   system: string;
   user: string;
@@ -26,6 +49,7 @@ export async function structured<T>(opts: {
   toolDescription?: string;
   model?: string;
   maxTokens?: number;
+  reasoningEffort?: "none" | "low" | "medium" | "high"; // cap Gemini 2.5 "thinking" — the big latency lever
 }): Promise<T> {
   const parameters = z.toJSONSchema(opts.schema) as Record<string, unknown>;
   delete parameters.$schema; // bare JSON Schema for the function parameters
@@ -60,9 +84,15 @@ export async function structured<T>(opts: {
       params.max_completion_tokens = Math.max(opts.maxTokens ?? 0, 8000); // leave room for reasoning tokens
     } else {
       params.temperature = 0;
-      // Gemini 2.5 spends "thinking" tokens against max_tokens — give generous headroom so the JSON
-      // output is never truncated (you're billed for tokens used, not the cap).
-      params.max_tokens = useJson ? Math.max(opts.maxTokens ?? 0, 8192) : (opts.maxTokens ?? 4096);
+      if (useJson) {
+        // Gemini 2.5 spends "thinking" tokens against max_tokens. With a bounded thinking budget
+        // (reasoning_effort) we use a real output cap — the main latency lever. Without it, keep
+        // generous headroom so the JSON output is never truncated.
+        if (opts.reasoningEffort) params.reasoning_effort = opts.reasoningEffort;
+        params.max_tokens = opts.reasoningEffort ? (opts.maxTokens ?? 2048) : Math.max(opts.maxTokens ?? 0, 8192);
+      } else {
+        params.max_tokens = opts.maxTokens ?? 4096;
+      }
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res = await client().chat.completions.create(params as any);
@@ -71,7 +101,12 @@ export async function structured<T>(opts: {
     const call = msg?.tool_calls?.[0];
     // tool-call args (OpenAI) OR message content (Gemini json_schema); strip ``` fences defensively
     let raw = call && call.type === "function" ? call.function.arguments : (msg?.content ?? null);
-    if (raw) raw = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+    if (raw) {
+      raw = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+      // keep just the first complete {...} object — robust to a trailing note OR a second object
+      const obj = firstJsonObject(raw);
+      if (obj) raw = obj;
+    }
     if (raw) {
       let json: unknown = null;
       try {

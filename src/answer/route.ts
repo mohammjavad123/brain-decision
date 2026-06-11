@@ -45,7 +45,9 @@ const MAX_FACTS = 30;
 
 export async function route(question: string, embedText?: string): Promise<Retrieved> {
   const qv = await embedOne(embedText ?? question);
-  const ql = question.toLowerCase();
+  // match keyword hints against the ORIGINAL question AND the refined query — so refinement helps the
+  // keyword-routing too (a hint word the founder didn't use but the refine step surfaced still routes).
+  const ql = `${question} ${embedText ?? ""}`.toLowerCase();
   const SIM = 0.95;
 
   // POSITION — keyword hint first, else a confident vector match
