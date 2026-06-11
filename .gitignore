@@ -11,3 +11,6 @@ data/db/
 
 # transformers.js model cache
 .cache/
+
+# generated artifact (re-created by `npm run dashboard`)
+dashboard.html
