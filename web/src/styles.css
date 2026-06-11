@@ -1,21 +1,30 @@
 :root {
-  --bg: #0a0e0d; --panel: #101614; --panel2: #0d1311;
-  --line: rgba(255, 255, 255, .09); --line2: rgba(255, 255, 255, .16);
-  --tp: #e9f0ea; --ts: #aebcb2; --tm: #7d8e83;
-  --em: #34d399; --amber: #f5b049; --rose: #fb7185; --cyan: #5cc8d6;
+  --bg: #0a0c12; --panel: #14171f; --panel2: #0f1219;
+  --line: rgba(255, 255, 255, .07); --line2: rgba(255, 255, 255, .15);
+  --tp: #eef1f8; --ts: #abb4c6; --tm: #6e7a8e;
+  --em: #34d399; --amber: #f6b455; --rose: #fb7185; --cyan: #38bdf8;
+  --indigo: #8b93f8; --violet: #a78bfa;
   --mono: ui-monospace, Menlo, Consolas, monospace;
   --sans: -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
 }
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  background: radial-gradient(1100px 600px at 85% -8%, rgba(16, 185, 129, .10), transparent 60%), var(--bg);
+  background:
+    radial-gradient(1000px 560px at 88% -10%, rgba(139, 147, 248, .14), transparent 60%),
+    radial-gradient(820px 480px at 3% 108%, rgba(56, 189, 248, .09), transparent 62%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--tp); font-family: var(--sans); font-size: 14.5px; line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 .wrap { max-width: 900px; margin: 0 auto; padding: 30px 26px 80px; }
 header { margin-bottom: 18px; }
-h1 { font-size: 23px; margin: 0 0 2px; }
+h1 {
+  font-size: 24px; margin: 0 0 2px; font-weight: 800; letter-spacing: -.01em;
+  background: linear-gradient(92deg, var(--indigo), var(--cyan) 50%, var(--em));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
 .sub { color: var(--tm); font-family: var(--mono); font-size: 12px; }
 
 textarea {
@@ -108,7 +117,7 @@ button:disabled { opacity: .5; cursor: default; }
   border: 1px solid transparent; border-bottom: none; background: transparent; color: var(--ts); cursor: pointer;
 }
 .tab:hover { color: var(--tp); }
-.tab.on { color: var(--em); border-color: var(--line); background: var(--panel); }
+.tab.on { color: var(--indigo); border-color: var(--line); background: var(--panel); }
 .tabs + .card { margin-top: 0; border-top-left-radius: 0; }
 
 /* ── trace tab ── */
@@ -135,6 +144,15 @@ button:disabled { opacity: .5; cursor: default; }
 .rec { margin-top: 12px; color: var(--tp); }
 .rec b { color: var(--em); }
 
+/* decision-first recommendation block */
+.recbox {
+  margin-top: 14px; border: 1px solid rgba(52, 211, 153, .32); border-left: 3px solid var(--em);
+  border-radius: 10px; background: rgba(52, 211, 153, .06); padding: 11px 14px;
+}
+.reclbl { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--em); margin-bottom: 5px; }
+.rectext { color: var(--tp); font-size: 14.5px; line-height: 1.55; }
+.answer { margin-top: 14px; }
+
 .badge {
   display: inline-block; font-family: var(--mono); font-size: 10.5px; padding: 3px 9px;
   border-radius: 999px; border: 1px solid var(--line2); letter-spacing: .04em; text-transform: none;
@@ -150,11 +168,28 @@ button:disabled { opacity: .5; cursor: default; }
 .gaps { margin: 6px 0 0; padding-left: 18px; color: var(--ts); }
 .gaps li { margin: 3px 0; font-size: 13.5px; }
 
-.cite { border-left: 2px solid var(--line2); padding: 4px 0 4px 12px; margin: 8px 0; font-size: 13px; }
+/* inline numbered citation chip (superscript next to a claim) */
+.cit {
+  font-family: var(--mono); font-size: 9.5px; font-weight: 700; color: #06281d;
+  background: var(--em); border-radius: 5px; padding: 1px 4px; margin: 0 1px 0 2px;
+  vertical-align: super; line-height: 1; cursor: help; transition: .15s;
+}
+.cit:hover { filter: brightness(1.15); }
+.cit.web { background: var(--cyan); }
+
+/* numbered source key */
+.cite { display: flex; gap: 10px; align-items: flex-start; border-left: 2px solid var(--line2); padding: 5px 0 5px 12px; margin: 7px 0; font-size: 13px; }
+.cite .cn {
+  flex: none; font-family: var(--mono); font-size: 10px; font-weight: 700; color: #06281d;
+  background: var(--em); border-radius: 5px; padding: 1px 6px; margin-top: 2px; min-width: 16px; text-align: center;
+}
+.cite .cbody { min-width: 0; }
 .cite .q { color: var(--ts); font-style: italic; }
 .cite .s { font-family: var(--mono); font-size: 11px; color: var(--tm); display: block; margin-top: 3px; }
 .cite.web { border-left-color: var(--cyan); }
+.cite.web .cn { background: var(--cyan); }
 .cite.web .s { color: var(--cyan); }
+.lbl.warn { color: var(--amber); }
 
 /* ════════════════ Memory tab ════════════════ */
 .modes { display: flex; gap: 8px; margin-bottom: 4px; }
@@ -163,7 +198,7 @@ button:disabled { opacity: .5; cursor: default; }
   border: 1px solid var(--line); background: transparent; color: var(--ts);
 }
 .mode:hover { color: var(--tp); }
-.mode.on { color: var(--em); border-color: rgba(52, 211, 153, .45); background: rgba(52, 211, 153, .08); }
+.mode.on { color: var(--indigo); border-color: rgba(139, 147, 248, .5); background: rgba(139, 147, 248, .1); }
 
 .memlab { animation: fade .25s ease; }
 .mlhead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -237,3 +272,177 @@ button:disabled { opacity: .5; cursor: default; }
 
 .link.danger { color: var(--rose); }
 .mlhead code { font-family: var(--mono); font-size: 11px; background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 4px; color: var(--ts); }
+
+/* ── root-agent container + animated loops (AgentFlow) ── */
+.ragentbox { fill: rgba(52,211,153,.035); stroke: rgba(52,211,153,.30); stroke-width: 1.4; stroke-dasharray: 6 5; transition: .3s; }
+.ragentbox.on { fill: rgba(52,211,153,.07); stroke: rgba(52,211,153,.6); filter: drop-shadow(0 0 9px rgba(52,211,153,.22)); }
+.ragentlabel { fill: var(--em); font-size: 10px; font-family: var(--mono); letter-spacing: .16em; opacity: .85; }
+.ragentsub { fill: var(--tm); font-size: 9.5px; font-family: var(--mono); }
+.ragentsub.loops { fill: var(--amber); text-anchor: start; }
+
+.gedge.loop { stroke: rgba(245,176,73,.4); }        /* tool loops = amber */
+.gedge.back { stroke: rgba(251,113,133,.45); }      /* ungrounded re-decide = rose */
+.gedge.loop.lit { stroke: var(--amber); }
+.gedge.back.lit { stroke: var(--rose); }
+.gedge.flow { stroke-dasharray: 5 6; animation: flowdash .6s linear infinite; }
+.gedge.flow:not(.loop):not(.back) { stroke: var(--em); }
+.gedge.loop.flow { stroke: var(--amber); }
+.gedge.back.flow { stroke: var(--rose); }
+@keyframes flowdash { to { stroke-dashoffset: -22; } }
+
+/* ROOT AGENT brain header (above the loop) */
+.brainlabel { fill: var(--em); font-size: 13px; font-weight: 800; font-family: var(--sans); letter-spacing: .03em; transition: .3s; }
+.brainlabel.on { filter: drop-shadow(0 0 8px rgba(52,211,153,.55)); }
+.braintag { fill: var(--tm); font-size: 9px; font-family: var(--mono); }
+.brainlink { stroke: rgba(52,211,153,.45); stroke-width: 1.3; stroke-dasharray: 3 3; }
+
+/* ── AgentFlow v2: ROOT AGENT band + emerald acts + WRITE flash + output ── */
+.agentgraph2 { width: 100%; height: auto; display: block; margin-top: 10px; }
+.agentband { fill: rgba(52,211,153,.06); stroke: rgba(52,211,153,.35); stroke-width: 1.4; transition: .3s; }
+.agentband.on { fill: rgba(52,211,153,.10); stroke: rgba(52,211,153,.7); filter: drop-shadow(0 0 10px rgba(52,211,153,.22)); }
+.agentbandlabel { fill: var(--em); font-size: 13px; font-weight: 800; font-family: var(--sans); letter-spacing: .04em; }
+.agentbandsub { fill: var(--ts); font-size: 9.5px; font-family: var(--mono); }
+.agentstatus { fill: var(--tm); font-size: 11px; font-family: var(--mono); }
+.agentstatus.live { fill: var(--em); }
+.flowkey i.k-agent { background: var(--em); }
+
+.gsub { fill: var(--tm); font-size: 8px; font-family: var(--mono); text-anchor: middle; }
+.gnode.agent rect { stroke: rgba(52,211,153,.55); }          /* the root agent's LLM acts = emerald */
+.gnode.agent.s-pending rect { stroke: rgba(52,211,153,.42); }
+.gnode.agent .gsub { fill: rgba(52,211,153,.8); }
+
+/* flash the WRITE node as it generates the final answer */
+.gnode.writing rect { stroke: var(--em); fill: rgba(52,211,153,.14); filter: drop-shadow(0 0 12px var(--em)); }
+.gnode.writing { animation: writeflash .55s ease-in-out infinite; }
+@keyframes writeflash { 0%,100% { opacity: .82; } 50% { opacity: 1; } }
+
+/* ROOT AGENT frame (wraps its acts + hands) — flashes while the agent is working */
+.agentframe { fill: rgba(52,211,153,.04); stroke: rgba(52,211,153,.32); stroke-width: 1.5; stroke-dasharray: 7 5; transition: .3s; }
+.agentframe.on { fill: rgba(52,211,153,.08); stroke: rgba(52,211,153,.78); filter: drop-shadow(0 0 12px rgba(52,211,153,.3)); animation: frameflash 1s ease-in-out infinite; }
+@keyframes frameflash { 0%,100% { stroke-opacity: .55; } 50% { stroke-opacity: 1; } }
+.agentframelabel { fill: var(--em); font-size: 12px; font-weight: 800; font-family: var(--sans); letter-spacing: .04em; }
+.agentframesub { fill: var(--tm); font-size: 9px; font-family: var(--mono); }
+
+/* ── AgentFlow v3: brain wired to tools ── */
+.flowkey i.k-writer { background: var(--amber); }
+
+.gnode.k-agent rect  { stroke: rgba(52,211,153,.6); }
+.gnode.k-tool rect   { stroke: rgba(92,200,214,.55); }
+.gnode.k-writer rect { stroke: rgba(245,176,73,.6); }
+.gnode.k-algo rect   { stroke: var(--line2); }
+.gnode.k-io rect     { stroke: rgba(169,156,246,.5); }
+
+.gedge2 { fill: none; stroke: rgba(255,255,255,.14); stroke-width: 1.6; transition: .2s; }
+.gedge2.lit { stroke: rgba(233,240,234,.42); }
+.gedge2.flow { stroke-dasharray: 5 6; animation: flowdash .6s linear infinite; stroke: var(--em); stroke-width: 2; }
+.gedge2.call   { stroke: rgba(92,200,214,.4); }
+.gedge2.result { stroke: rgba(92,200,214,.28); stroke-dasharray: 3 4; }
+.gedge2.call.flow, .gedge2.result.flow { stroke: var(--cyan); stroke-dasharray: 5 6; }
+.gedge2.call.lit, .gedge2.result.lit { stroke: rgba(92,200,214,.7); }
+.gedge2.decline { stroke: rgba(251,113,133,.38); }
+.gedge2.decline.flow, .gedge2.decline.lit { stroke: var(--rose); }
+
+/* ── AgentFlow v4: decision loop is the hero ── */
+.flowkey i.k-brain { background: var(--em); }
+.flowkey i.k-graph { background: #7ee0b8; }
+
+.gnode.k-brain rect { stroke: var(--em); stroke-width: 1.9; }
+.gnode.k-graph rect { stroke: rgba(52,211,153,.7); fill: rgba(52,211,153,.07); }
+
+.gedge2.dash { stroke: rgba(92,200,214,.3); stroke-dasharray: 4 4; }
+.gedge2.memloop { stroke: rgba(52,211,153,.45); stroke-width: 1.8; }
+.gedge2.memloop.lit { stroke: rgba(52,211,153,.8); }
+.gedge2.memloop.flow { stroke: var(--em); stroke-width: 2.4; stroke-dasharray: 5 6; animation: flowdash .55s linear infinite; }
+.gedge2.webloop { stroke: rgba(92,200,214,.4); }
+.gedge2.webloop.lit { stroke: rgba(92,200,214,.72); }
+.gedge2.webloop.flow { stroke: var(--cyan); stroke-dasharray: 5 6; animation: flowdash .55s linear infinite; }
+.gedge2.back { stroke: rgba(251,113,133,.4); }
+.gedge2.back.lit { stroke: rgba(251,113,133,.72); }
+.gedge2.back.flow { stroke: var(--rose); stroke-dasharray: 5 6; animation: flowdash .55s linear infinite; }
+
+/* ── agent flow v5 · telemetry · core · brain · detailed trace ── */
+.tele { display: flex; gap: 8px; margin: 14px 0 2px; flex-wrap: wrap; }
+.tstat { flex: 1; min-width: 82px; border: 1px solid var(--line); border-radius: 10px; padding: 9px 8px; background: var(--panel2); text-align: center; transition: .25s; }
+.tstat .tv { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--em); line-height: 1.05; }
+.tstat .tk { font-family: var(--mono); font-size: 8.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--tm); margin-top: 4px; }
+.tstat.dim { opacity: .42; }
+.tstat.dim .tv { color: var(--tm); }
+.tstat.conf-high .tv { color: var(--em); }
+.tstat.conf-medium .tv { color: var(--amber); }
+.tstat.conf-low .tv { color: var(--rose); }
+.tstat.loopstat .tv { color: #7ee0b8; }
+
+.gcore { transition: .3s; }
+.gcore.live { filter: drop-shadow(0 0 11px rgba(52, 211, 153, .42)); }
+.gcorelabel { fill: var(--em); font-size: 9px; font-family: var(--mono); letter-spacing: .22em; text-anchor: middle; opacity: .68; }
+.gcoresub { fill: var(--tm); font-size: 8.5px; font-family: var(--mono); letter-spacing: .14em; text-anchor: middle; opacity: .55; }
+
+.gnode.k-brain rect { fill: rgba(52, 211, 153, .07); stroke: var(--em); stroke-width: 2; }
+.gnode.k-brain.s-active rect { filter: drop-shadow(0 0 13px var(--em)); }
+.gnode.hub .gt { font-weight: 800; font-size: 13.5px; }
+.gnode.s-static { opacity: .72; }
+.brainring { stroke: var(--em); stroke-width: 1.4; }
+
+.dot { fill: #eafff5; filter: drop-shadow(0 0 4px var(--em)); }
+.gelabel.back { fill: rgba(251, 113, 133, .82); }
+
+/* ── Database tab: table explorer + provenance trace ── */
+.dbhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.dbcounts { display: flex; gap: 14px; flex-wrap: wrap; font-family: var(--mono); font-size: 12px; color: var(--tm); }
+.dbcount b { color: var(--em); font-size: 15px; margin-right: 3px; }
+.dbtabs { display: flex; gap: 6px; margin: 14px 0 0; flex-wrap: wrap; }
+.dbtab { font-family: var(--mono); font-size: 12px; padding: 6px 13px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel2); color: var(--ts); cursor: pointer; }
+.dbtab:hover { color: var(--tp); }
+.dbtab.on { color: var(--indigo); border-color: var(--indigo); background: rgba(139, 147, 248, .1); }
+.dbhint { font-family: var(--mono); font-size: 11px; color: var(--ts); margin: 12px 2px 0; }
+.dbschema { font-family: var(--mono); font-size: 10.5px; color: var(--tm); margin: 10px 2px 0; line-height: 1.5; word-break: break-word; }
+.dbschemak { color: var(--indigo); text-transform: uppercase; letter-spacing: .08em; margin-right: 6px; }
+.rawrow { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
+.rawrow summary { cursor: pointer; font-family: var(--mono); font-size: 10.5px; color: var(--cyan); }
+.rawjson { margin: 8px 0 0; padding: 11px 13px; background: #090b11; border: 1px solid var(--line2); border-radius: 9px; font-family: var(--mono); font-size: 11px; line-height: 1.5; color: var(--ts); overflow: auto; max-height: 320px; white-space: pre; }
+.dbsplit { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; align-items: start; }
+@media (max-width: 760px) { .dbsplit { grid-template-columns: 1fr; } }
+.dbtablewrap { max-height: 560px; overflow: auto; padding: 0; }
+.dbtable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.dbtable th { position: sticky; top: 0; background: var(--panel); text-align: left; font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--tm); padding: 9px 10px; border-bottom: 1px solid var(--line2); }
+.dbtable td { padding: 7px 10px; border-bottom: 1px solid var(--line); color: var(--ts); vertical-align: top; }
+.dbtable tbody tr { cursor: pointer; transition: .12s; }
+.dbtable tbody tr:hover { background: rgba(255, 255, 255, .03); }
+.dbtable tr.sel { background: rgba(52, 211, 153, .10); }
+.dbtable tr.decisionrow td:first-child { box-shadow: inset 3px 0 0 var(--em); }
+.vcell { color: var(--tp); max-width: 360px; }
+
+.dbtrace { position: sticky; top: 12px; }
+.traceback { font-family: var(--mono); font-size: 11px; color: var(--em); margin: 14px 0 7px; letter-spacing: .03em; }
+.srccard { border: 1px solid var(--line2); border-radius: 10px; overflow: hidden; }
+.srchead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 9px 12px; background: var(--panel2); border-bottom: 1px solid var(--line); }
+.srcbody { padding: 12px 14px; font-size: 12.5px; line-height: 1.6; color: var(--ts); white-space: pre-wrap; max-height: 320px; overflow: auto; }
+.qmark { background: rgba(245, 176, 73, .26); color: var(--tp); border-radius: 3px; padding: 1px 2px; box-shadow: 0 0 0 1px rgba(245, 176, 73, .4); }
+.srcdetail { border-bottom: 1px dashed var(--line); padding: 8px 0; }
+.srcdetail summary { cursor: pointer; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.srcdetail .srcbody { border: none; padding: 10px 0 4px 8px; }
+.decrow { border-bottom: 1px dashed var(--line); padding: 9px 0; }
+.decrow summary { cursor: pointer; }
+.decbody { margin: 8px 0 4px 6px; padding-left: 10px; border-left: 2px solid var(--line2); }
+.chip.st-approved { background: rgba(52, 211, 153, .15); color: var(--em); }
+.chip.st-rejected { background: rgba(251, 113, 133, .15); color: var(--rose); }
+.chip.st-pending { background: rgba(245, 176, 73, .12); color: var(--amber); }
+
+/* planned-extension ghost node + edge (low colour, dashed) */
+.flowkey i.k-ghost { background: #5b6b62; }
+.gnode.k-ghost rect { fill: transparent; stroke: rgba(125, 142, 131, .5); stroke-dasharray: 5 4; stroke-width: 1.4; }
+.gnode.k-ghost .gt { fill: #97a69c; font-weight: 600; }
+.gnode.k-ghost .gsub { fill: var(--tm); }
+.gnode.s-ghost { opacity: .6; }
+.ghosttag { fill: #7d8e83; font-size: 7px; font-family: var(--mono); letter-spacing: .16em; text-anchor: middle; }
+.gedge2.ghost { stroke: rgba(125, 142, 131, .42); stroke-dasharray: 5 4; stroke-width: 1.3; }
+
+.flowextra { color: var(--tm); font-family: var(--mono); font-size: 10.5px; line-height: 1.55; margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 9px; }
+.flowextra b { color: var(--ts); font-weight: 600; }
+.flowextra i { color: var(--em); font-style: normal; }
+
+/* detailed live trace (label + per-node detail) */
+.flowline { align-items: flex-start; }
+.flb { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.fld { display: flex; flex-direction: column; gap: 2px; margin-top: 1px; }
+.fldln { font-family: var(--mono); font-size: 10.5px; color: var(--tm); padding: 1px 0 1px 9px; border-left: 1px solid var(--line2); line-height: 1.45; }
