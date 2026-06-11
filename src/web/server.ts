@@ -3,11 +3,14 @@ import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join, extname } from "node:path";
 import { seed } from "../seed.js";
 import { streamAgent } from "../answer/graph.js";
-import { resolveDecision, getDecision, counts, clearCompiled, allMentions, allRelationships } from "../db/queries.js";
+import {
+  getDecision, counts, clearCompiled, allMentions, allRelationships,
+  allSources, currentFacts, currentSignals, currentPositions, currentContradictions, listDecisions, allEntities, allEdges,
+} from "../db/queries.js";
+import { resolveAndFold } from "../answer/closeLoop.js";
 import { embedOne } from "../llm/embed.js";
 import { researchAvailable } from "../research/tavily.js";
 import { config, EMBEDDING_DIM } from "../config.js";
-import { nowIso } from "../util.js";
 import { parseSources } from "../ingest/parseSource.js";
 import { ingestSources } from "../ingest/pipeline.js";
 import { migrate } from "../db/migrate.js";
@@ -149,6 +152,35 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // The DATABASE view — return the persisted tables so the UI can show the real rows and let the user
+  // click a fact and trace it back to its verbatim source quote (provenance is a row, not a footnote).
+  if (req.method === "GET" && url.pathname === "/db") {
+    try {
+      const [sources, facts, signals, positions, contradictions, decisions, entities, edges, c] = await Promise.all([
+        allSources(), currentFacts(), currentSignals(), currentPositions(), currentContradictions(), listDecisions(), allEntities(), allEdges(), counts(),
+      ]);
+      res.writeHead(200, { "Content-Type": "application/json", ...CORS });
+      res.end(JSON.stringify({
+        counts: c,
+        sources: sources.map((s) => ({ id: s.id, type: s.type, date: s.date, author: s.author, participants: s.participants, body: s.body })),
+        facts: facts.map((f) => ({
+          id: f.id, type: f.type, value: f.value, quote: f.quote, source_id: f.source_id, speaker: f.speaker,
+          dimension: f.dimension, evidence_tier: f.evidence_tier, confidence: f.confidence, valid_time: f.valid_time,
+        })),
+        signals: signals.map((s) => ({ id: s.id, type: s.type, label: s.label, promotion: s.promotion, count: s.count, companies: s.companies, fact_ids: s.fact_ids })),
+        positions: positions.map((p) => ({ id: p.id, name: p.name, summary: p.summary, confidence: p.confidence, gaps: p.gaps, fields: p.fields })),
+        contradictions: contradictions.map((cc) => ({ id: cc.id, dimension: cc.dimension, kind: cc.kind, note: cc.note, fact_a: cc.fact_a, fact_b: cc.fact_b })),
+        decisions: decisions.map((d) => ({ id: d.id, question: d.question, answer: d.answer, recommendation: d.recommendation, confidence: d.confidence, status: d.status, gaps: d.gaps, evidence: d.evidence, human_note: d.human_note, created_at: d.created_at, resolved_at: d.resolved_at })),
+        entities: entities.map((e) => ({ id: e.id, name: e.name, type: e.type, aliases: e.aliases })),
+        edges: edges.map((e) => ({ from_id: e.from_id, predicate: e.predicate, to_id: e.to_id })),
+      }));
+    } catch (e) {
+      res.writeHead(500, { "Content-Type": "application/json", ...CORS });
+      res.end(JSON.stringify({ error: (e as Error).message }));
+    }
+    return;
+  }
+
   // Wipe the WHOLE memory — fresh empty brain — so a user can start a new subject and rebuild by pasting.
   // Drops everything (facts, signals, positions, decision log included); same in-process DB, no restart.
   if (req.method === "POST" && url.pathname === "/reset") {
@@ -175,7 +207,7 @@ const server = createServer(async (req, res) => {
           res.end(JSON.stringify({ error: "no such decision" }));
           return;
         }
-        await resolveDecision(id, verdict, note ?? null, nowIso());
+        await resolveAndFold(id, verdict, note ?? null); // record verdict + fold outcome back into memory
         res.writeHead(200, { "Content-Type": "application/json", ...CORS });
         res.end(JSON.stringify({ ok: true, status: verdict }));
       } catch (e) {

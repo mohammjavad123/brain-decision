@@ -6,8 +6,9 @@ import { AgentFlow } from "./components/AgentFlow";
 import { Trace } from "./components/Trace";
 import { AnswerCard } from "./components/AnswerCard";
 import { MemoryLab } from "./components/MemoryLab";
+import { DatabaseView } from "./components/DatabaseView";
 
-type Mode = "ask" | "memory";
+type Mode = "ask" | "memory" | "database";
 
 export function App() {
   const [mode, setMode] = useState<Mode>("ask");
@@ -78,7 +79,9 @@ export function App() {
         <div className="sub">
           {mode === "ask"
             ? "ask a CEO question · watch the agent think · approve the recommendation"
-            : "paste a raw item · watch it become typed memory · facts → graph → signals → positions"}
+            : mode === "memory"
+            ? "paste a raw item · watch it become typed memory · facts → graph → signals → positions"
+            : "the persisted tables · click a fact to trace it back to its exact source quote"}
         </div>
       </header>
 
@@ -88,6 +91,9 @@ export function App() {
         </button>
         <button className={mode === "memory" ? "mode on" : "mode"} onClick={() => setMode("memory")}>
           Build memory
+        </button>
+        <button className={mode === "database" ? "mode on" : "mode"} onClick={() => setMode("database")}>
+          Database
         </button>
       </div>
 
@@ -109,8 +115,10 @@ export function App() {
           {view === "flow" ? <AgentFlow steps={steps} busy={busy} /> : <Trace steps={steps} />}
           {decision && <AnswerCard decision={decision} onDecide={decide} />}
         </>
-      ) : (
+      ) : mode === "memory" ? (
         <MemoryLab steps={ingestSteps} busy={ingestBusy} onIngest={ingest} onReset={resetMem} />
+      ) : (
+        <DatabaseView />
       )}
     </div>
   );

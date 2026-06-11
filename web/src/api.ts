@@ -1,4 +1,4 @@
-import type { IngestStep, Status, Step } from "./types";
+import type { DbData, IngestStep, Status, Step } from "./types";
 
 // Talk DIRECTLY to the agent API (the server sends CORS headers) — more reliable than streaming
 // Server-Sent Events through Vite's dev proxy, which can buffer/drop them.
@@ -71,6 +71,13 @@ export function ingestStream(src: string, onStep: (s: IngestStep) => void, onDon
 export async function loadCorpusText(): Promise<string> {
   const r = await fetch(API + "/corpus");
   return r.text();
+}
+
+/** Fetch the persisted tables for the Database tab (facts, sources, decisions… with provenance). */
+export async function fetchDb(): Promise<DbData> {
+  const r = await fetch(API + "/db");
+  if (!r.ok) throw new Error(`db fetch failed (${r.status})`);
+  return r.json();
 }
 
 /** Wipe the whole memory — fresh empty brain — so a new subject can be built from scratch. */

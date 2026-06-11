@@ -66,3 +66,31 @@ export type IngestStep = {
   detail: string[];
   data?: IngestData;
 };
+
+// ── Database tab: the persisted tables (with provenance trace) ──
+export type DbSource = { id: string; type: string; date: string; author: string | null; participants: string[]; body: string };
+export type DbFact = {
+  id: string; type: string; value: string; quote: string; source_id: string; speaker: string | null;
+  dimension: string | null; evidence_tier: string; confidence: number; valid_time: string;
+};
+export type DbSignal = { id: string; type: string; label: string; promotion: string; count: number; companies: string[]; fact_ids: string[] };
+export type DbPosition = { id: string; name: string; summary: string; confidence: Confidence; gaps: string[]; fields: { claim: string; fact_ids: string[] }[] };
+export type DbContradiction = { id: string; dimension: string; kind: string; note: string; fact_a: string; fact_b: string };
+export type DbDecision = {
+  id: string; question: string; answer: string; recommendation: string; confidence: Confidence; status: Status;
+  gaps: string[]; evidence: Citation[]; human_note: string | null; created_at: string; resolved_at: string | null;
+};
+export type DbEntity = { id: string; name: string; type: string; aliases: string[] };
+export type DbEdge = { from_id: string; predicate: string; to_id: string };
+
+export type DbData = {
+  counts: Record<string, number>;
+  sources: DbSource[];
+  facts: DbFact[];
+  signals: DbSignal[];
+  positions: DbPosition[];
+  contradictions: DbContradiction[];
+  decisions: DbDecision[];
+  entities: DbEntity[];
+  edges: DbEdge[];
+};
