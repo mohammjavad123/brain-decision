@@ -17,6 +17,7 @@ import { z } from "zod";
 /** The kinds of typed fact we extract. Mirrors VSI's signal taxonomy + a generic `claim`. */
 export const FactType = z.enum([
   "claim", // a stated fact about the company (runway, ICP, pricing, strategy…)
+  "decision", // a human-ratified decision folded back into memory (Step 5 loop closure)
   "pain_point",
   "objection",
   "workflow",
@@ -35,7 +36,7 @@ export type FactType = z.infer<typeof FactType>;
 export const EntityType = z.enum(["person", "company", "investor", "competitor"]);
 export type EntityType = z.infer<typeof EntityType>;
 
-export const SourceType = z.enum(["call", "email", "note", "tweet", "doc", "slack"]);
+export const SourceType = z.enum(["call", "email", "note", "tweet", "doc", "slack", "decision"]);
 export type SourceType = z.infer<typeof SourceType>;
 
 /** Evidence tier of a single piece of evidence. E1 = casual mention … E5 = full buying narrative. */

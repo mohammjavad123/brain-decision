@@ -1,10 +1,9 @@
 import { seed } from "./seed.js";
 import { answer } from "./answer/index.js";
 import { formatDecision } from "./format.js";
-import { nowIso } from "./util.js";
+import { resolveAndFold } from "./answer/closeLoop.js";
 import {
   listDecisions,
-  resolveDecision,
   getDecision,
   counts,
   currentPositions,
@@ -71,8 +70,8 @@ async function main(): Promise<void> {
         console.log(`No decision ${id}`);
         break;
       }
-      await resolveDecision(id, verdict === "approve" ? "approved" : "rejected", note.join(" ") || null, nowIso());
-      console.log(`Decision ${id} → ${verdict === "approve" ? "approved" : "rejected"}`);
+      await resolveAndFold(id, verdict === "approve" ? "approved" : "rejected", note.join(" ") || null);
+      console.log(`Decision ${id} → ${verdict === "approve" ? "approved" : "rejected"} · folded back into memory`);
       break;
     }
 
