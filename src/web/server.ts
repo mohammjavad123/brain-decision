@@ -170,7 +170,7 @@ const server = createServer(async (req, res) => {
         signals: signals.map((s) => ({ id: s.id, type: s.type, label: s.label, promotion: s.promotion, count: s.count, companies: s.companies, fact_ids: s.fact_ids })),
         positions: positions.map((p) => ({ id: p.id, name: p.name, summary: p.summary, confidence: p.confidence, gaps: p.gaps, fields: p.fields })),
         contradictions: contradictions.map((cc) => ({ id: cc.id, dimension: cc.dimension, kind: cc.kind, note: cc.note, fact_a: cc.fact_a, fact_b: cc.fact_b })),
-        decisions: decisions.map((d) => ({ id: d.id, question: d.question, answer: d.answer, recommendation: d.recommendation, confidence: d.confidence, status: d.status, gaps: d.gaps, evidence: d.evidence, human_note: d.human_note, created_at: d.created_at, resolved_at: d.resolved_at })),
+        decisions: decisions.map((d) => ({ id: d.id, question: d.question, answer: d.answer, recommendation: d.recommendation, confidence: d.confidence, status: d.status, gaps: d.gaps, evidence: d.evidence, reasoning: d.reasoning, human_note: d.human_note, created_at: d.created_at, resolved_at: d.resolved_at })),
         entities: entities.map((e) => ({ id: e.id, name: e.name, type: e.type, aliases: e.aliases })),
         edges: edges.map((e) => ({ from_id: e.from_id, predicate: e.predicate, to_id: e.to_id })),
       }));
@@ -263,20 +263,20 @@ server.listen(PORT, async () => {
   const keyOk = config.llmProvider === "gemini" ? !!config.geminiKey : !!config.openaiKey;
   const keyName = config.llmProvider === "gemini" ? "GEMINI_API_KEY" : "OPENAI_API_KEY";
 
-  // 2. database — open the PGlite store; if the brain is EMPTY, build it once (same process, no conflict)
+  // 2. database — open the PGlite store. Memory is built by INGEST (the Memory tab) or `npm run seed`.
+  //    On an EMPTY brain we build the demo corpus once so a fresh clone runs in one command — but QUIETLY
+  //    (the Memory tab shows the live build; we don't spam the console). SKIP_SEED=1 boots light and lets
+  //    you build via Ingest instead.
   try {
     let c = await counts();
-    if (c.facts === 0) {
-      if (!keyOk) {
-        console.log(`  ⚠ memory is empty and no ${keyName} is set — cannot seed.`);
-        console.log(`      → copy .env.example to .env, add your ${keyName}, then run \`npm start\` again.`);
-      } else {
-        console.log("  ◷ empty brain — seeding from the corpus (first run; ~1-2 min)…");
-        await seed({ log: (m) => console.log("      " + m) });
-        c = await counts();
-      }
+    if (c.facts === 0 && !process.env.SKIP_SEED && keyOk) {
+      console.log("  ◷ building the demo corpus once (first run; ~1-2 min · SKIP_SEED=1 to skip)…");
+      await seed({ log: () => {} }); // quiet
+      c = await counts();
     }
     console.log(`  ✓ database ready                    ${c.facts} facts · ${c.signals} signals · ${c.positions} positions · ${c.decisions} decisions`);
+    if (c.facts === 0)
+      console.log(`  ○ memory is empty — in the UI: load a corpus → Ingest, or run \`npm run seed\`${keyOk ? "" : ` (set ${keyName} in .env first)`}.`);
   } catch (e) {
     console.log(`  ✗ database FAILED: ${(e as Error).message}`);
   }

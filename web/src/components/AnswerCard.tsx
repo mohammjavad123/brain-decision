@@ -1,78 +1,69 @@
 import type { Citation, Decision, Status } from "../types";
 
 const isWeb = (s: string) => s.startsWith("web/");
-const splitIds = (s: string) => s.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
-
-type Ref = { n: number; c: Citation };
 
 /**
- * Build the citation map: every [fact_id] marker the model placed inline gets a sequential number
- * (by first appearance), then any cited fact never referenced inline is appended. Inline superscripts
- * and the Sources key share one numbering. Handles [a][b] and [a, b]. Falls back gracefully (no markers).
+ * The decision brief. Recommendation-first, then the cited "why" (each reason carries its receipts as
+ * numbered source chips), then the blind spots (never invented), then the numbered source key. The
+ * citations are structured (per reasoning point), so provenance is explicit without cluttering prose.
  */
-function buildRefs(texts: string[], evidence: Citation[]): Map<string, Ref> {
-  const byFact = new Map(evidence.map((c) => [c.fact_id, c]));
-  const refs = new Map<string, Ref>();
-  let n = 0;
-  for (const t of texts)
-    for (const m of t.matchAll(/\[([^\]]+)\]/g))
-      for (const id of splitIds(m[1]))
-        if (byFact.has(id) && !refs.has(id)) refs.set(id, { n: ++n, c: byFact.get(id)! });
-  for (const c of evidence) if (!refs.has(c.fact_id)) refs.set(c.fact_id, { n: ++n, c });
-  return refs;
-}
-
-// render prose, replacing [fact_id] markers with numbered superscript chips (hover → quote)
-function Cited({ text, refs }: { text: string; refs: Map<string, Ref> }) {
-  const out: React.ReactNode[] = [];
-  let last = 0,
-    key = 0;
-  const re = /\[([^\]]+)\]/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text))) {
-    if (m.index > last) out.push(text.slice(last, m.index));
-    for (const id of splitIds(m[1])) {
-      const ref = refs.get(id);
-      if (ref)
-        out.push(
-          <sup className={"cit" + (isWeb(ref.c.source_id) ? " web" : "")} key={key++} title={`“${ref.c.quote}” — ${ref.c.source_id}${ref.c.speaker ? " · " + ref.c.speaker : ""}`}>
-            {ref.n}
-          </sup>,
-        );
-    }
-    last = m.index + m[0].length; // unknown markers are dropped, not printed
-  }
-  if (last < text.length) out.push(text.slice(last));
-  return <>{out}</>;
-}
-
 export function AnswerCard({ decision, onDecide }: { decision: Decision; onDecide: (v: Status) => void }) {
-  const refs = buildRefs([decision.recommendation, decision.answer], decision.evidence);
+  // number every cited fact — by first appearance across the reasoning points, then any remaining evidence
+  const byFact = new Map(decision.evidence.map((c) => [c.fact_id, c]));
+  const refs = new Map<string, { n: number; c: Citation }>();
+  let n = 0;
+  for (const r of decision.reasoning) for (const id of r.fact_ids) if (byFact.has(id) && !refs.has(id)) refs.set(id, { n: ++n, c: byFact.get(id)! });
+  for (const c of decision.evidence) if (!refs.has(c.fact_id)) refs.set(c.fact_id, { n: ++n, c });
   const sources = [...refs.values()].sort((a, b) => a.n - b.n);
 
+  // the bottom-line framing = the headline composed before the "Why:" block
+  const bottomLine = decision.answer.split(/\n\nWhy:/)[0].trim();
+
+  const Chips = ({ ids }: { ids: string[] }) => (
+    <>
+      {ids.map((id) => {
+        const r = refs.get(id);
+        return r ? (
+          <sup key={id} className={"cit" + (isWeb(r.c.source_id) ? " web" : "")} title={`“${r.c.quote}” — ${r.c.source_id}${r.c.speaker ? " · " + r.c.speaker : ""}`}>
+            {r.n}
+          </sup>
+        ) : null;
+      })}
+    </>
+  );
+
   return (
-    <div className="card">
+    <div className="card brief">
       <h3>
-        Answer
+        Recommendation
         <span className={"badge b-" + decision.confidence}>confidence: {decision.confidence}</span>
         <span className={"badge b-" + decision.status}>{decision.status}</span>
       </h3>
 
-      {/* decision-first: lead with the recommended action */}
+      {bottomLine && <div className="bottomline">{bottomLine}</div>}
+
       <div className="recbox">
         <div className="reclbl">→ Recommended next action</div>
-        <div className="rectext">
-          <Cited text={decision.recommendation} refs={refs} />
-        </div>
+        <div className="rectext">{decision.recommendation}</div>
       </div>
 
-      <div className="answer">
-        <Cited text={decision.answer} refs={refs} />
-      </div>
+      {decision.reasoning.length > 0 && (
+        <>
+          <div className="lbl">Why — the receipts</div>
+          <ol className="why">
+            {decision.reasoning.map((r, i) => (
+              <li key={i}>
+                {r.point}
+                <Chips ids={r.fact_ids} />
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
 
       {decision.gaps.length > 0 && (
         <>
-          <div className="lbl warn">⚠ Open gaps — what it does not know (not invented)</div>
+          <div className="lbl warn">⚠ What it can't confirm — not invented</div>
           <ul className="gaps">
             {decision.gaps.map((g, i) => (
               <li key={i}>{g}</li>
@@ -83,7 +74,7 @@ export function AnswerCard({ decision, onDecide }: { decision: Decision; onDecid
 
       {sources.length > 0 && (
         <>
-          <div className="lbl">Sources ({sources.length}) — every claim traces to a verbatim quote</div>
+          <div className="lbl">Sources ({sources.length}) — every point traces to a verbatim quote</div>
           {sources.map(({ n, c }) => (
             <div className={"cite" + (isWeb(c.source_id) ? " web" : "")} key={n}>
               <span className="cn">{n}</span>

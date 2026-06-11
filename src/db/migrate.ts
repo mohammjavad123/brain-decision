@@ -120,6 +120,7 @@ CREATE TABLE IF NOT EXISTS decisions (
   answer            TEXT NOT NULL,
   confidence        TEXT NOT NULL,
   evidence          JSONB NOT NULL DEFAULT '[]',
+  reasoning         JSONB NOT NULL DEFAULT '[]',
   contradiction_ids JSONB NOT NULL DEFAULT '[]',
   research_fact_ids JSONB NOT NULL DEFAULT '[]',
   gaps              JSONB NOT NULL DEFAULT '[]',

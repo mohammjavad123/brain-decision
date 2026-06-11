@@ -8,12 +8,15 @@ export type Citation = {
   speaker: string | null;
 };
 
+export type ReasoningPoint = { point: string; fact_ids: string[] };
+
 export type Decision = {
   id: string;
   question: string;
   answer: string;
   confidence: Confidence;
   evidence: Citation[];
+  reasoning: ReasoningPoint[];
   gaps: string[];
   recommendation: string;
   status: Status;
@@ -78,7 +81,7 @@ export type DbPosition = { id: string; name: string; summary: string; confidence
 export type DbContradiction = { id: string; dimension: string; kind: string; note: string; fact_a: string; fact_b: string };
 export type DbDecision = {
   id: string; question: string; answer: string; recommendation: string; confidence: Confidence; status: Status;
-  gaps: string[]; evidence: Citation[]; human_note: string | null; created_at: string; resolved_at: string | null;
+  gaps: string[]; evidence: Citation[]; reasoning: ReasoningPoint[]; human_note: string | null; created_at: string; resolved_at: string | null;
 };
 export type DbEntity = { id: string; name: string; type: string; aliases: string[] };
 export type DbEdge = { from_id: string; predicate: string; to_id: string };

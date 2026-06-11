@@ -83,18 +83,19 @@ export type ComposedPosition = z.infer<typeof ComposedPosition>;
 
 // ─── Seam #2b: Synthesize an answer (question-time, over a SMALL retrieved set) ──
 
-export const SynthesizedClaim = z.object({
-  claim: z.string().describe("one factual statement made in the answer"),
-  fact_ids: z.array(z.string()).describe("ids of provided facts that back this claim (for grounding verification)"),
+// A decision brief: a one-line call, the cited "why" (receipts), the blind spots, and a next action.
+export const SynthesizedReason = z.object({
+  point: z.string().describe("one concise reason driving the recommendation, in plain language"),
+  fact_ids: z.array(z.string()).describe("ids of provided facts that back THIS point — its receipts (used by verify_grounding)"),
 });
 export const SynthesizedAnswer = z.object({
-  answer: z.string().describe("direct answer to the CEO question, explicit about confidence + unknowns"),
+  bottom_line: z.string().describe("the decision-useful headline in ONE line; when evidence conflicts or is conditional this is the FRAMING, never a false-precise number"),
+  recommendation: z.string().describe("the single recommended next action — RECOMMEND ONLY, never an action taken"),
   confidence: Confidence,
-  recommendation: z.string().describe("a recommended next action — RECOMMEND ONLY, never an action taken"),
-  gaps: z.array(z.string()).describe("honest unknowns the evidence/research could not resolve"),
-  claims: z
-    .array(SynthesizedClaim)
-    .describe("every factual statement in the answer mapped to the fact ids that support it — used by verify_grounding"),
+  reasoning: z
+    .array(SynthesizedReason)
+    .describe("the 'why' — a few concise points, EACH backed by cited fact ids. Only established points; anything unproven belongs in gaps, never here"),
+  gaps: z.array(z.string()).describe("blind spots — what the evidence/research could NOT establish; state plainly, never invent"),
 });
 export type SynthesizedAnswer = z.infer<typeof SynthesizedAnswer>;
 

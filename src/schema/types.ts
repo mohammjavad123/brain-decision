@@ -184,12 +184,20 @@ export const Citation = z.object({
 });
 export type Citation = z.infer<typeof Citation>;
 
+// one "why" point in the decision brief — a plain-language reason backed by cited facts (the receipts)
+export const ReasoningPoint = z.object({
+  point: z.string(),
+  fact_ids: z.array(z.string()),
+});
+export type ReasoningPoint = z.infer<typeof ReasoningPoint>;
+
 export const Decision = z.object({
   id: z.string(),
   question: z.string(),
-  answer: z.string(),
+  answer: z.string(), // a readable brief composed from the bottom line + reasoning (for the log / CLI / MCP / eval)
   confidence: Confidence,
   evidence: z.array(Citation), // the facts + sources it leaned on
+  reasoning: z.array(ReasoningPoint).default([]), // the cited "why" points (the receipts), for the UI brief
   contradiction_ids: z.array(z.string()),
   research_fact_ids: z.array(z.string()), // researched facts folded back in (cited)
   gaps: z.array(z.string()),

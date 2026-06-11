@@ -197,7 +197,10 @@ export function DatabaseView() {
               </summary>
               <div className="decbody">
                 <div className="rec"><b>→ {d.recommendation}</b></div>
-                <div className="muted small">confidence {d.confidence} · {d.gaps.length} gaps · {d.evidence.length} citations{d.resolved_at ? ` · resolved ${d.resolved_at.slice(0, 10)}` : ""}</div>
+                <div className="muted small">confidence {d.confidence} · {d.reasoning?.length ?? 0} reasons · {d.gaps.length} gaps · {d.evidence.length} citations{d.resolved_at ? ` · resolved ${d.resolved_at.slice(0, 10)}` : ""}</div>
+                {d.reasoning?.length > 0 && (
+                  <ol className="why">{d.reasoning.map((r, i) => <li key={i}>{r.point}</li>)}</ol>
+                )}
                 {d.evidence.map((c, i) => (
                   <div key={i} className="cite">
                     <span className="q">“{c.quote}”</span>

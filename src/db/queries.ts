@@ -61,7 +61,7 @@ const toPosition = (r: Row): Position => ({
 });
 const toDecision = (r: Row): Decision => ({
   id: r.id, question: r.question, answer: r.answer, confidence: r.confidence,
-  evidence: asArr(r.evidence) as Citation[], contradiction_ids: asArr(r.contradiction_ids),
+  evidence: asArr(r.evidence) as Citation[], reasoning: asArr(r.reasoning), contradiction_ids: asArr(r.contradiction_ids),
   research_fact_ids: asArr(r.research_fact_ids), gaps: asArr(r.gaps), recommendation: r.recommendation,
   status: r.status, human_note: r.human_note ?? null, created_at: r.created_at, resolved_at: r.resolved_at ?? null,
 });
@@ -156,10 +156,10 @@ export async function clearCompiled(): Promise<void> {
 
 export async function insertDecision(d: Decision): Promise<void> {
   await q(
-    `INSERT INTO decisions (id,question,answer,confidence,evidence,contradiction_ids,research_fact_ids,
+    `INSERT INTO decisions (id,question,answer,confidence,evidence,reasoning,contradiction_ids,research_fact_ids,
        gaps,recommendation,status,human_note,created_at,resolved_at)
-     VALUES ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7::jsonb,$8::jsonb,$9,$10,$11,$12,$13)`,
-    [d.id, d.question, d.answer, d.confidence, JSON.stringify(d.evidence),
+     VALUES ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7::jsonb,$8::jsonb,$9::jsonb,$10,$11,$12,$13,$14)`,
+    [d.id, d.question, d.answer, d.confidence, JSON.stringify(d.evidence), JSON.stringify(d.reasoning),
      JSON.stringify(d.contradiction_ids), JSON.stringify(d.research_fact_ids), JSON.stringify(d.gaps),
      d.recommendation, d.status, d.human_note, d.created_at, d.resolved_at],
   );

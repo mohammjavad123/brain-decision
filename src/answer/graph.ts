@@ -17,11 +17,13 @@ import type { Decision, Citation, Fact, SynthesizedAnswer } from "../schema/inde
  *                                       └─ research_web ──▶ research ┘                 └─ ungrounded → assess
  *
  * `assess` is the single decision node (the loop hub): every pass it picks answer / deepen / research,
- * and even a failed `verify` routes back to it. DEPTH is adaptive — `assess` chooses to deepen again
- * each pass; convergence (a hop adds nothing new) + a budget cap just bound it. retrieve/deepen/verify
- * are deterministic; research is the one external tool; synthesize is the seam. Logs a PENDING decision.
+ * and even a failed `verify` routes back to it. It's a BOUNDED adaptive loop — `assess` *can* deepen or
+ * research repeatedly — but on a small corpus the graph neighbourhood is usually pulled in ONE hop, so in
+ * practice it runs retrieve → assess → (maybe one deepen/research) → synthesize. Convergence (a hop adds
+ * nothing new) + budget caps bound it. retrieve/deepen/verify are deterministic; research is the one
+ * external tool; synthesize is the seam. Logs a PENDING decision.
  */
-const MAX_RESEARCH_ROUNDS = 2;
+const MAX_RESEARCH_ROUNDS = 1; // one web attempt — don't burn repeated searches on a gap the web can't fill
 const MAX_DEPTH = 3; // budget cap on graph-deepening hops (the agent + convergence usually stop sooner)
 const MAX_VERIFY_RETRIES = 1;
 
@@ -68,6 +70,7 @@ async function declineNode(state: State): Promise<Partial<State>> {
       "deals, objections, competitors, the team, or fundraising.",
     confidence: "low",
     evidence: [],
+    reasoning: [],
     contradiction_ids: [],
     research_fact_ids: [],
     gaps: [],
@@ -119,43 +122,84 @@ async function researchNode(state: State): Promise<Partial<State>> {
   return { researchFacts: facts, gaps: [], iterations: state.iterations + 1 };
 }
 
-// synthesize — the seam: cited answer + confidence + recommendation + structured claims
+/**
+ * Pure + testable. What to tell `synthesize` about research. The key case (BUG-2): `assess` chose
+ * research_web but it was DROPPED (no key / no web-answerable gap / round cap) or returned nothing —
+ * then `researchFacts` is empty and we must tell synthesize to treat it as an UNRESEARCHED gap, so it
+ * never answers as if it had researched.
+ */
+export function researchNote(opts: { need: Need; researchFactsLen: number; hasGaps: boolean; available: boolean }): string {
+  if (opts.need === "research_web" && opts.researchFactsLen === 0) {
+    return opts.available
+      ? "external research was attempted for a gap but returned nothing usable — treat it as an UNRESEARCHED gap; do NOT answer as if you researched it"
+      : "web research is unavailable (no TAVILY_API_KEY) — treat any external gap as UNRESEARCHED; do NOT answer as if you researched it";
+  }
+  if (!opts.available && opts.hasGaps) return "web research unavailable (TAVILY_API_KEY not set)";
+  return "";
+}
+
+// synthesize — the seam: cited answer + confidence + recommendation + structured reasoning
 async function synthesizeNode(state: State): Promise<Partial<State>> {
   const r = state.retrieved!;
-  const note = !researchAvailable() && r.gaps.length ? "web research unavailable (TAVILY_API_KEY not set)" : "";
+  const note = researchNote({
+    need: state.need,
+    researchFactsLen: state.researchFacts.length,
+    hasGaps: r.gaps.length > 0,
+    available: researchAvailable(),
+  });
   const syn = await synthesize(state.question, r, state.researchFacts, note, state.groundingFeedback);
   return { synthesized: syn };
+}
+
+/**
+ * Pure + testable. Keep only reasoning points whose every cited fact resolves, and cite ONLY the ids
+ * that back those kept points. NO fallback to "all retrieved facts" — an ungrounded answer must ship
+ * with NO citations rather than launder the whole retrieval set as if it backed the claims.
+ */
+export function groundReasoning(
+  reasoning: { point: string; fact_ids: string[] }[],
+  knownIds: Set<string>,
+): { reasoning: { point: string; fact_ids: string[] }[]; usedIds: string[] } {
+  const grounded = (c: { fact_ids: string[] }) => c.fact_ids.length > 0 && c.fact_ids.every((id) => knownIds.has(id));
+  const kept = reasoning.filter(grounded).map((c) => ({ point: c.point, fact_ids: c.fact_ids }));
+  const usedIds = [...new Set(kept.flatMap((c) => c.fact_ids))];
+  return { reasoning: kept, usedIds };
 }
 
 // verify_grounding — DETERMINISTIC: every claim must cite fact ids that resolve to real facts
 async function verifyNode(state: State): Promise<Partial<State>> {
   const syn = state.synthesized!;
   const r = state.retrieved!;
-  const known = new Set((await getFacts([...new Set(syn.claims.flatMap((c) => c.fact_ids))])).map((f) => f.id));
+  const known = new Set((await getFacts([...new Set(syn.reasoning.flatMap((c) => c.fact_ids))])).map((f) => f.id));
   const grounded = (c: { fact_ids: string[] }) => c.fact_ids.length > 0 && c.fact_ids.every((id) => known.has(id));
-  const unsupported = syn.claims.filter((c) => !grounded(c));
+  const unsupported = syn.reasoning.filter((c) => !grounded(c));
 
-  // ungrounded claim → the agent is under-evidenced → loop back to `assess` to deepen/research
+  // an ungrounded reasoning point → the agent is under-evidenced → loop back to `assess` to deepen/research
   if (unsupported.length > 0 && state.verifyRetries < MAX_VERIFY_RETRIES) {
     return {
       needsRetry: true,
       verifyRetries: state.verifyRetries + 1,
-      groundingFeedback: `A prior answer made claims it couldn't cite: "${unsupported.map((c) => c.claim).join('" | "')}". Find support or drop them.`,
+      groundingFeedback: `A prior answer made points it couldn't cite: "${unsupported.map((c) => c.point).join('" | "')}". Find support or drop them.`,
     };
   }
 
   const ok = unsupported.length === 0;
-  const usedIds = [...new Set(syn.claims.filter(grounded).flatMap((c) => c.fact_ids))];
-  const fallbackIds = usedIds.length ? usedIds : [...r.facts, ...state.researchFacts].map((f) => f.id);
-  const cited = await getFacts(fallbackIds);
+  // cite ONLY the facts that back grounded reasoning — no laundering. If nothing grounds, evidence is [].
+  const { reasoning, usedIds } = groundReasoning(syn.reasoning, known);
+  const cited = await getFacts(usedIds);
   const evidence: Citation[] = cited.map((f) => ({ fact_id: f.id, quote: f.quote, source_id: f.source_id, speaker: f.speaker }));
+
+  // compose a readable brief for the log / CLI / MCP / eval (the UI renders the structured fields)
+  const answer =
+    syn.bottom_line + (reasoning.length ? "\n\nWhy:\n" + reasoning.map((c, i) => `${i + 1}. ${c.point}`).join("\n") : "");
 
   const decision: Decision = {
     id: newId("dec"),
     question: state.question,
-    answer: syn.answer,
+    answer,
     confidence: ok ? syn.confidence : downgrade(syn.confidence as Conf),
     evidence,
+    reasoning,
     contradiction_ids: r.contradictions.map((c) => c.id),
     research_fact_ids: state.researchFacts.map((f) => f.id),
     gaps: syn.gaps,
@@ -256,7 +300,7 @@ function detailFor(node: string, u: Partial<State>): string[] {
   } else if (node === "research") {
     d.push(...(u.researchFacts ?? []).map((f) => `+ ${f.value} (${f.source_id})`));
   } else if (node === "synthesize" && u.synthesized) {
-    d.push(`${u.synthesized.claims?.length ?? 0} cited claim(s)`);
+    d.push(`${u.synthesized.reasoning?.length ?? 0} cited reason(s)`);
   } else if (node === "log" && u.decision) {
     d.push(`decision ${u.decision.id} · ${u.decision.evidence.length} citation(s)`);
   }

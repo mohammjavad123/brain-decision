@@ -153,6 +153,12 @@ button:disabled { opacity: .5; cursor: default; }
 .rectext { color: var(--tp); font-size: 14.5px; line-height: 1.55; }
 .answer { margin-top: 14px; }
 
+/* decision brief */
+.bottomline { font-size: 16px; line-height: 1.5; color: var(--tp); margin: 12px 0 2px; font-weight: 500; }
+.why { margin: 8px 0 0; padding-left: 22px; color: var(--ts); }
+.why li { margin: 7px 0; font-size: 14px; line-height: 1.5; }
+.why li::marker { color: var(--indigo); font-family: var(--mono); font-size: 12px; }
+
 .badge {
   display: inline-block; font-family: var(--mono); font-size: 10.5px; padding: 3px 9px;
   border-radius: 999px; border: 1px solid var(--line2); letter-spacing: .04em; text-transform: none;
