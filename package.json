@@ -13,6 +13,7 @@
     "resolve": "tsx src/cli.ts resolve",
     "inspect": "tsx src/cli.ts inspect",
     "mcp": "tsx src/mcp/server.ts",
+    "test:mcp": "tsx scripts/mcp-test.ts",
     "smoke": "tsx scripts/smoke.ts",
     "dashboard": "tsx src/dashboard.ts",
     "web": "tsx src/web/server.ts",

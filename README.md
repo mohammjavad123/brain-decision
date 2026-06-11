@@ -112,15 +112,16 @@ The brain is **operable by an agent, not just this UI.** It exposes a [**FastMCP
 npm run mcp        # start the FastMCP server (stdio)
 ```
 
-**7 tools:**
+**Three tools — one per verb of the design: decide · verify · close the loop.** The surface exposes the
+*agent*, not its internals: `query_brain` **is** the root agent — a single call retrieves from memory and, when
+the gap warrants it, **autonomously deepens the memory graph and/or runs real web search inside that one call**.
+Those two internal steps are never separate tools — the graph decides when to take them, not the caller.
 
 | tool | does |
 |---|---|
-| `query_brain` | runs the **full agent** on a CEO question → cited recommendation + logs a pending decision |
-| `get_position` | a compiled, drift-aware position (e.g. ICP / runway) with citations + gaps |
-| `list_signals` / `list_contradictions` / `list_decisions` | read the compiled layer + the append-only decision log |
-| `get_provenance` | walk a fact id → its verbatim source quote · speaker · location |
-| `resolve_decision` | record the human verdict **and fold the outcome back into memory** |
+| `query_brain` | runs the **full agent** on a CEO question (retrieve → deepen / research as needed, internally) → cited recommendation + logs a pending decision |
+| `get_provenance` | the receipts — walk any cited fact id → its verbatim source quote · speaker · location |
+| `resolve_decision` | record the human verdict **and fold the outcome back into memory** so future queries retrieve it |
 
 **Use it from Claude Desktop / Code** — add to `claude_desktop_config.json`:
 ```json
