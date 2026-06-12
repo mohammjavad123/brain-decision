@@ -49,7 +49,16 @@ Also extract:
   founder works_at/founded the company AND the investor invested_in the company; a board note by a
   CTO implies that person works_at the company; a prospect call implies the prospect company evaluated Loomwork.
 
-Low temperature. Strict schema. No commentary.`;
+Low temperature. Strict schema. No commentary. Reason about the item silently, then output ONLY the JSON object.
+
+Worked example (illustrative — a different company; mirror this shape, not its content):
+INPUT: "Ops note (RiverCorp): we're at roughly 12 months of cash at the current spend; the new VP wants sign-off on anything over $25k."
+OUTPUT:
+{"facts":[
+  {"type":"claim","value":"runway ≈ 12 months at current spend","quote":"roughly 12 months of cash at the current spend","speaker":null,"confidence":0.85,"evidence_tier":"E3","dimension":"runway","qualifier":"at current spend","comparable":"12 months"},
+  {"type":"objection","value":"VP sign-off required above $25k","quote":"the new VP wants sign-off on anything over $25k","speaker":null,"confidence":0.8,"evidence_tier":"E3","dimension":"budget_authority","qualifier":"over $25k","comparable":null}
+],"entities":[{"name":"RiverCorp","type":"company"}],"relationships":[]}
+Note: each quote is copied verbatim; nothing is inferred beyond what the text says.`;
 
 export async function extractFromSource(source: Source): Promise<ExtractionResult> {
   const who = source.author ?? source.participants.join(", ") ?? "unknown";

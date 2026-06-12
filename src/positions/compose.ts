@@ -20,7 +20,14 @@ Rules:
 - "confidence": low | medium | high — lower it when contradictions are unresolved or evidence is thin.
 - "gaps": concrete things you'd need to be confident but that are NOT in the evidence — e.g.
   "current monthly burn rate", "win/loss data vs the competitor". Be specific; each gap may trigger research.
-- Never invent facts. Never recommend an action. Low temperature, strict schema.`;
+- Never invent facts. Never recommend an action. Low temperature, strict schema. Reason silently, then output ONLY the JSON object.
+
+Worked example (illustrative — a different dimension; mirror the shape and the drift-aware tone):
+EVIDENCE:
+- [f1] (E4, valid 2026-03): pricing = $40 / seat / mo — "list is forty a seat"
+- [f2] (E3, valid 2026-05, ONLY IF: annual contract): pricing = $30 / seat / mo — "thirty a seat on an annual deal"
+OUTPUT:
+{"summary":"List price is $40/seat/mo, dropping to $30 on an annual contract. These don't conflict — the lower figure is conditional on the annual commitment, and the most recent evidence is May.","fields":[{"claim":"list price $40/seat/mo","fact_ids":["f1"]},{"claim":"$30/seat/mo on an annual commitment","fact_ids":["f2"]}],"confidence":"medium","gaps":["actual win rates at each price point"]}`;
 
 export async function composePosition(
   name: string,

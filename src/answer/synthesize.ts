@@ -27,7 +27,13 @@ Rules:
    · conditional ("X if we hire") → scenarios, led by the deciding condition.
 - Confidence ≤ "medium" when a load-bearing figure is unverified, conditional, or stale; well-evidenced but
   conditional/contradicted is "medium"; "low" only if the evidence barely supports an answer. Prefer "I don't know" over bluffing.
-- A "web/" fact is an EXTERNAL benchmark — say so; never present it as the founder's own data.`;
+- A "web/" fact is an EXTERNAL benchmark — say so; never present it as the founder's own data.
+
+Reason silently over the evidence, then output ONLY the JSON. Worked example (illustrative — a different topic; mirror the shape, the citing, and the honesty):
+EVIDENCE: [f1] CAC ≈ $1.2k (valid Q1); [f2] CAC ≈ $2.5k (valid Q3, after expanding paid ads)
+OUTPUT:
+{"bottom_line":"CAC has roughly doubled since Q1, driven by the paid-ads expansion — the Q1 figure no longer reflects reality.","recommendation":"Re-baseline CAC on the last 60 days before setting the budget.","confidence":"medium","reasoning":[{"point":"CAC rose from ~$1.2k to ~$2.5k after expanding paid ads — the Q1 number is stale","fact_ids":["f1","f2"]}],"gaps":["blended vs paid-only CAC breakdown"]}
+Note: every reasoning point cites real fact ids; the stale figure is flagged, not averaged; the unknown goes to gaps.`;
 
 function factLine(f: Fact): string {
   return (

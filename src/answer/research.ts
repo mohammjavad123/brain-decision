@@ -17,7 +17,17 @@ export type ResearchOutcome = { available: boolean; facts: Fact[]; query: string
 const SYSTEM = `You evaluate web search results to fill ONE specific gap for a founder's decision.
 Extract only findings that DIRECTLY address the gap, as cited facts. Each finding needs a "quote"
 copied verbatim from the provided result content. Ignore marketing fluff and anything off-topic.
-This is evaluation, not a dump — prefer 1–4 high-relevance findings over many weak ones.`;
+This is evaluation, not a dump — prefer 1–4 high-relevance findings over many weak ones.
+Reason silently over the results, then output ONLY the JSON.
+
+Worked example (illustrative):
+GAP TO FILL: typical post-Series-A runway buffer (months)
+WEB RESULTS:
+[0] SeedNotes (seednotes.example): "Most Series A startups aim to keep 18–24 months of runway after the round, leaving room to hit the metrics for the next raise."
+[1] AcmeBank promo (acmebank.example): "Open a startup account today!"
+OUTPUT:
+{"findings":[{"claim":"Series A startups typically target ~18–24 months of runway post-raise","quote":"Most Series A startups aim to keep 18–24 months of runway after the round","relevance":0.9}]}
+Note: the quote is copied VERBATIM from a result; the marketing result [1] is ignored as off-topic.`;
 
 export async function researchGap(
   gap: string,

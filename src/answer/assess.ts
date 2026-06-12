@@ -23,7 +23,15 @@ Only research GENERIC external facts (market norms, "what do others typically do
 research (a) private/internal data — exact burn, churn, internal metrics — or (b) company-specific STRATEGIC
 questions like "what should WE price / position / build" — those need internal discovery, not a web benchmark,
 so they stay honest unknowns ("answer", with the gap flagged). A contradiction is reconciled when answering,
-not researched. Prefer "answer"; only deepen or research when it would actually change the answer.`;
+not researched. Prefer "answer"; only deepen or research when it would actually change the answer.
+
+Reason briefly, then output ONLY the JSON. Worked examples (illustrative — one per branch):
+• ENOUGH → answer: the runway position is well-evidenced; the only unknown (current burn) is INTERNAL.
+  {"need":"answer","research_gaps":[],"reasoning":"enough to frame a defensible answer; the missing burn is an internal unknown, so flag it as a gap rather than research it"}
+• MISSING-BUT-INTERNAL → deeper_memory: the question needs the competitor a deal was lost to, which is in memory but wasn't retrieved.
+  {"need":"deeper_memory","research_gaps":[],"reasoning":"the competitor is likely already in memory on a connected node — expand the graph before answering"}
+• NEEDS-EXTERNAL → research_web: asks for a healthy post-raise runway buffer; memory has our own runway but no public benchmark.
+  {"need":"research_web","research_gaps":["typical post-Series-A runway buffer in months"],"reasoning":"our own runway is known; the benchmark is public info not in memory, so research that specific gap"}`;
 
 function bundle(question: string, r: Retrieved, researchFacts: Fact[]): string {
   const parts: string[] = [`QUESTION: ${question}`];
