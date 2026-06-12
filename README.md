@@ -130,10 +130,11 @@ Those two internal steps are never separate tools — the graph decides when to 
 { "mcpServers": { "decision-brain": { "command": "npm", "args": ["run", "mcp"], "cwd": "/absolute/path/to/brain-decision" } } }
 ```
 
-**Test it** with the MCP Inspector (browser UI — list tools, fill params, run):
+**Try it interactively** with the MCP Inspector — the easiest way (it attaches a client, so the 3 tools are clickable in a browser UI):
 ```bash
 npx @modelcontextprotocol/inspector npm run mcp
 ```
+*(Running `npm run mcp` on its own just waits on stdio for a client to connect — a “could not infer client capabilities” notice there is expected, not an error.)*
 
 > ⚠ The local store (PGlite) is **single-process** — run **either** the web UI (`npm start`) **or** the MCP server, never both at once (they share `.data/`).
 
