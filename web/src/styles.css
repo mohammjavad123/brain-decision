@@ -514,6 +514,6 @@ button:disabled { opacity: .5; cursor: default; }
 .dmbar { border: 1px solid rgba(52,211,153,.3); border-left: 3px solid var(--em); background: rgba(52,211,153,.05); border-radius: 10px; padding: 12px 14px; margin-top: 14px; }
 .dmbarh { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--em); margin-bottom: 10px; }
 .dmbaritem { margin: 10px 0; }
-.dmbarq { color: var(--tp); font-style: italic; font-size: 14px; line-height: 1.5; }
+.dmbarq { color: var(--tp); font-weight: 600; font-size: 14px; line-height: 1.5; }
 .dmbarhow { color: var(--ts); font-size: 13px; line-height: 1.55; margin-top: 3px; }
 .dmbarhow::before { content: "→ how: "; color: var(--em); font-family: var(--mono); font-size: 11px; }

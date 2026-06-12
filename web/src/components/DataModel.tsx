@@ -242,22 +242,22 @@ const MENUS: { name: string; fixed: boolean; values: string }[] = [
   { name: "predicate", fixed: false, values: "free text — examples: works_at · founded · invested_in · competes_with" },
 ];
 
-// Michael's bar (from his email) → how this design meets it (the persuasive framing)
-const BAR: { q: string; how: string }[] = [
+// the design philosophy — the principles behind this build, and why each shaped it
+const PHILOSOPHY: { q: string; how: string }[] = [
   {
-    q: "Keep it deterministic where it counts. Compile and normalise on the way in, and let the agent read artifacts rather than improvise at output.",
+    q: "Compile on the way in; read artifacts at output — don't improvise.",
     how: "Memory is COMPILED at ingest (parse → extract → connect → signals → positions). The LLM runs at only TWO seams — Extract (text in) and Compose (stance out); everything structural between them is deterministic code. At question time the agent READS these artifacts — it never re-improvises the facts.",
   },
   {
-    q: "Intelligence over features.",
+    q: "Intelligence over features — build only what the questions need.",
     how: "No over-building: only the positions the questions need (ICP, runway); Q2 is served straight from signals; nothing is gold-plated. Every table earns its place.",
   },
   {
-    q: "A defensible decision, complete with receipts.",
+    q: "Every decision is defensible — with receipts.",
     how: "Every fact carries a verbatim quote + its source, and the quote is re-verified against the source — invented provenance is rejected. Every edge, position and decision traces back to real words. Nothing floats free.",
   },
   {
-    q: "The brain has to be operable by an agent, not just queryable by a human.",
+    q: "Operable by an agent, not just a human.",
     how: "The same brain is exposed over MCP (query_brain · get_provenance · resolve_decision), so an agent can drive the whole loop — not just a human reading this UI.",
   },
 ];
@@ -296,10 +296,10 @@ export function DataModel() {
           <b> two LLM seams</b>, and the reasoning behind each choice. (Phase 1 — what Phase 2's agent reads to decide.)
         </p>
         <div className="dmbar">
-          <div className="dmbarh">The bar — from Michael's email — and how this design meets it</div>
-          {BAR.map((b, i) => (
+          <div className="dmbarh">Philosophy — why it's built this way</div>
+          {PHILOSOPHY.map((b, i) => (
             <div key={i} className="dmbaritem">
-              <div className="dmbarq">“{b.q}”</div>
+              <div className="dmbarq">{b.q}</div>
               <div className="dmbarhow">{b.how}</div>
             </div>
           ))}
