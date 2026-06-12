@@ -401,8 +401,9 @@ button:disabled { opacity: .5; cursor: default; }
 .dbtab:hover { color: var(--tp); }
 .dbtab.on { color: var(--indigo); border-color: var(--indigo); background: rgba(139, 147, 248, .1); }
 .dbhint { font-family: var(--mono); font-size: 11px; color: var(--ts); margin: 12px 2px 0; }
-.dbschema { font-family: var(--mono); font-size: 10.5px; color: var(--tm); margin: 10px 2px 0; line-height: 1.5; word-break: break-word; }
-.dbschemak { color: var(--indigo); text-transform: uppercase; letter-spacing: .08em; margin-right: 6px; }
+.dbschema { font-family: var(--mono); font-size: 10.5px; color: var(--tm); margin: 6px 2px 0; line-height: 1.5; word-break: break-word; }
+.dbschemak { color: var(--indigo); text-transform: uppercase; letter-spacing: .08em; margin-right: 6px; font-family: var(--mono); font-size: 10px; }
+.dbwhy1 { font-size: 13px; color: var(--ts); margin: 10px 2px 0; line-height: 1.5; }
 .rawrow { margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
 .rawrow summary { cursor: pointer; font-family: var(--mono); font-size: 10.5px; color: var(--cyan); }
 .rawjson { margin: 8px 0 0; padding: 11px 13px; background: #090b11; border: 1px solid var(--line2); border-radius: 9px; font-family: var(--mono); font-size: 11px; line-height: 1.5; color: var(--ts); overflow: auto; max-height: 320px; white-space: pre; }
@@ -473,3 +474,46 @@ button:disabled { opacity: .5; cursor: default; }
 }
 .qcopy { font-family: var(--mono); font-size: 10px; color: var(--tm); }
 .qcard:hover .qcopy { color: var(--cyan); }
+
+/* ── "Data model" tab — the real tables, columns + example rows ── */
+.dm { display: flex; flex-direction: column; gap: 14px; }
+.dmintro { color: var(--ts); font-size: 13px; line-height: 1.55; }
+.dmth { margin-bottom: 2px; }
+.dmth code { font-size: 15px; color: var(--tp); font-weight: 700; }
+.dmscroll { overflow-x: auto; margin-top: 8px; }
+.dmnote { font-family: var(--mono); font-size: 10.5px; color: var(--tm); margin-top: 7px; }
+.fkcol { color: var(--cyan) !important; }
+.dmlinks2 { margin-top: 9px; display: flex; flex-wrap: wrap; gap: 8px; }
+.dmlink2 { font-family: var(--mono); font-size: 10.5px; color: var(--cyan); border: 1px solid rgba(56,189,248,.3); background: rgba(56,189,248,.07); border-radius: 6px; padding: 2px 8px; }
+.dmsteps { list-style: none; padding: 0; margin: 6px 0 4px; display: flex; flex-direction: column; gap: 9px; }
+.dmsteps li { display: flex; gap: 10px; align-items: flex-start; }
+.dmstepn { font-family: var(--mono); font-size: 11px; color: #06281d; background: var(--em); border-radius: 6px; min-width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; font-weight: 700; }
+.dmstept { color: var(--ts); font-size: 13px; line-height: 1.5; }
+.dmstept b { color: var(--tp); }
+.dmsub { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--indigo); margin: 14px 0 4px; }
+.dmbuilt { font-family: var(--mono); font-size: 10px; padding: 2px 8px; border-radius: 999px; margin-left: 4px; white-space: nowrap; }
+.dmbuilt.llm { color: var(--violet); border: 1px solid rgba(167,139,250,.4); background: rgba(167,139,250,.09); }
+.dmbuilt.code { color: var(--cyan); border: 1px solid rgba(56,189,248,.4); background: rgba(56,189,248,.08); }
+.dmth { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dmlegend2 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: var(--ts); }
+.dmflow { font-family: var(--mono); font-size: 12px; color: var(--ts); background: var(--panel2); border: 1px solid var(--line); border-left: 3px solid var(--amber); border-radius: 8px; padding: 11px 13px; margin: 4px 0 10px; line-height: 1.55; white-space: pre; overflow-x: auto; }
+.dmcode { font-family: var(--mono); font-size: 12px; color: var(--tp); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 11px 13px; margin: 4px 0 10px; line-height: 1.5; white-space: pre; overflow-x: auto; }
+.dmmenu { font-size: 13px; color: var(--ts); margin: 5px 0; line-height: 1.5; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.dmmenu code { color: var(--tp); font-weight: 600; }
+.kindchip { font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; padding: 2px 7px; border-radius: 5px; white-space: nowrap; }
+.kindchip.list { color: var(--violet); border: 1px solid rgba(167,139,250,.4); background: rgba(167,139,250,.08); }
+.kindchip.free { color: var(--cyan); border: 1px solid rgba(56,189,248,.4); background: rgba(56,189,248,.08); }
+.kindchip.num { color: var(--amber); border: 1px solid rgba(246,180,85,.4); background: rgba(246,180,85,.08); }
+.dmdesign { border: 1px solid rgba(167,139,250,.32); border-left: 3px solid var(--violet); background: rgba(167,139,250,.06); border-radius: 10px; padding: 12px 14px; margin: 4px 0 12px; }
+.dmdesignh { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--violet); margin-bottom: 8px; }
+.dmdesign p { margin: 6px 0; font-size: 13px; line-height: 1.55; color: var(--ts); }
+.dmdesign code { color: var(--cyan); font-family: var(--mono); font-size: 12px; }
+.dmhero { text-align: left; }
+.dmtitle { font-size: 26px; font-weight: 800; letter-spacing: -.01em; margin: 0 0 6px; background: linear-gradient(92deg, var(--indigo), var(--cyan) 55%, var(--em)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.dmtitlesub { color: var(--ts); font-size: 14px; line-height: 1.6; margin: 0; max-width: 760px; }
+.dmbar { border: 1px solid rgba(52,211,153,.3); border-left: 3px solid var(--em); background: rgba(52,211,153,.05); border-radius: 10px; padding: 12px 14px; margin-top: 14px; }
+.dmbarh { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--em); margin-bottom: 10px; }
+.dmbaritem { margin: 10px 0; }
+.dmbarq { color: var(--tp); font-style: italic; font-size: 14px; line-height: 1.5; }
+.dmbarhow { color: var(--ts); font-size: 13px; line-height: 1.55; margin-top: 3px; }
+.dmbarhow::before { content: "→ how: "; color: var(--em); font-family: var(--mono); font-size: 11px; }

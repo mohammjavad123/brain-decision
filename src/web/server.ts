@@ -156,8 +156,8 @@ const server = createServer(async (req, res) => {
   // click a fact and trace it back to its verbatim source quote (provenance is a row, not a footnote).
   if (req.method === "GET" && url.pathname === "/db") {
     try {
-      const [sources, facts, signals, positions, contradictions, decisions, entities, edges, c] = await Promise.all([
-        allSources(), currentFacts(), currentSignals(), currentPositions(), currentContradictions(), listDecisions(), allEntities(), allEdges(), counts(),
+      const [sources, facts, signals, positions, contradictions, decisions, entities, edges, mentions, relationships, c] = await Promise.all([
+        allSources(), currentFacts(), currentSignals(), currentPositions(), currentContradictions(), listDecisions(), allEntities(), allEdges(), allMentions(), allRelationships(), counts(),
       ]);
       res.writeHead(200, { "Content-Type": "application/json", ...CORS });
       res.end(JSON.stringify({
@@ -172,7 +172,9 @@ const server = createServer(async (req, res) => {
         contradictions: contradictions.map((cc) => ({ id: cc.id, dimension: cc.dimension, kind: cc.kind, note: cc.note, fact_a: cc.fact_a, fact_b: cc.fact_b })),
         decisions: decisions.map((d) => ({ id: d.id, question: d.question, answer: d.answer, recommendation: d.recommendation, confidence: d.confidence, status: d.status, gaps: d.gaps, evidence: d.evidence, reasoning: d.reasoning, human_note: d.human_note, created_at: d.created_at, resolved_at: d.resolved_at })),
         entities: entities.map((e) => ({ id: e.id, name: e.name, type: e.type, aliases: e.aliases })),
-        edges: edges.map((e) => ({ from_id: e.from_id, predicate: e.predicate, to_id: e.to_id })),
+        edges: edges.map((e) => ({ from_id: e.from_id, predicate: e.predicate, to_id: e.to_id, source_id: e.source_id })),
+        mentions: mentions.map((m) => ({ name: m.name, type: m.type, source_id: m.source_id })),
+        relationships: relationships.map((r) => ({ subject: r.subject, predicate: r.predicate, object: r.object, source_id: r.source_id })),
       }));
     } catch (e) {
       res.writeHead(500, { "Content-Type": "application/json", ...CORS });

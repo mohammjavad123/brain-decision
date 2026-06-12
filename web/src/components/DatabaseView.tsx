@@ -2,20 +2,42 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchDb } from "../api";
 import type { DbData, DbFact } from "../types";
 
-type Tab = "facts" | "sources" | "signals" | "positions" | "contradictions" | "decisions";
+type Tab = "facts" | "sources" | "entities" | "edges" | "mentions" | "relationships" | "signals" | "positions" | "contradictions" | "decisions";
 const TABS: { key: Tab; label: string }[] = [
   { key: "facts", label: "Facts" },
   { key: "sources", label: "Sources" },
+  { key: "entities", label: "Entities" },
+  { key: "edges", label: "Edges" },
+  { key: "mentions", label: "Mentions" },
+  { key: "relationships", label: "Relationships" },
   { key: "signals", label: "Signals" },
   { key: "positions", label: "Positions" },
   { key: "contradictions", label: "Contradictions" },
   { key: "decisions", label: "Decisions" },
 ];
 
+// one short claim of WHY each table exists
+const WHY: Record<Tab, string> = {
+  facts: "the checkable unit the brain reasons over — a typed atom with a verbatim quote.",
+  sources: "the verbatim ground truth every fact, edge and decision traces back to.",
+  entities: "one node per real person/company — name variants merged, so the graph and counts are right.",
+  edges: "the typed relationships between entities — the graph the agent can traverse.",
+  mentions: "the raw names seen per source (pre-merge), kept so entities can be re-resolved over all sources.",
+  relationships: "the raw subject→predicate→object links (pre-wire), kept so edges can be re-wired over all sources.",
+  signals: "recurring customer patterns — evidence a thing is real, not a one-off.",
+  positions: "the company's drift-aware stance per dimension, with confidence and explicit gaps.",
+  contradictions: "conflicts surfaced (not averaged away) so the brain can reason about drift.",
+  decisions: "the append-only, recommend-only log; resolved outcomes fold back into memory.",
+};
+
 // how each table is actually stored (shown so the DB format is explicit, not guessed)
 const SCHEMA: Record<Tab, string> = {
   facts: "table facts — id · type · value · quote · source_id · speaker · dimension · evidence_tier · confidence · valid_time · learned_time · superseded_at · embedding(vector 768)",
   sources: "table sources — id · type · date · author · participants · body · hash (content-addressed)",
+  entities: "table entities — id (PK) · name · type · aliases[]",
+  edges: "table edges — id (PK) · from_id → entities · predicate · to_id → entities · source_id → sources · similarity",
+  mentions: "table mentions — id (PK) · name · type · source_id → sources",
+  relationships: "table relationships — id (PK) · subject · predicate · object · source_id → sources",
   signals: "table signals — id · type · label · fact_ids[] · count · companies[] · promotion · last_confirmed · embedding",
   positions: "table positions — id · name · summary · fields[]{claim, fact_ids} · confidence · gaps[] · valid_time · compiled_at · embedding",
   contradictions: "table contradictions — id · dimension · fact_a · fact_b · kind · note · status",
@@ -48,6 +70,8 @@ export function DatabaseView() {
   useEffect(load, []);
 
   const sourceById = useMemo(() => new Map((db?.sources ?? []).map((s) => [s.id, s])), [db]);
+  const entById = useMemo(() => new Map((db?.entities ?? []).map((e) => [e.id, e])), [db]);
+  const entName = (id: string) => entById.get(id)?.name ?? id;
 
   if (err) return <div className="card errcard">⚠ {err} — is the server running on :8787?</div>;
   if (!db) return <div className="card"><span className="muted">loading the database…</span></div>;
@@ -73,6 +97,7 @@ export function DatabaseView() {
         ))}
       </div>
 
+      <div className="dbwhy1"><span className="dbschemak">why</span> {WHY[tab]}</div>
       <div className="dbschema"><span className="dbschemak">stored as</span> {SCHEMA[tab]}</div>
 
       {tab === "facts" && (
@@ -141,6 +166,76 @@ export function DatabaseView() {
               <div className="srcbody">{s.body}</div>
             </details>
           ))}
+        </div>
+      )}
+
+      {tab === "entities" && (
+        <div className="card dbtablewrap">
+          <table className="dbtable">
+            <thead><tr><th>name</th><th>type</th><th>aliases (merged surfaces)</th></tr></thead>
+            <tbody>
+              {db.entities.map((e) => (
+                <tr key={e.id}>
+                  <td className="vcell">{e.name}</td>
+                  <td><span className="chip ty">{e.type}</span></td>
+                  <td className="muted small">{e.aliases.length ? e.aliases.join(", ") : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === "edges" && (
+        <div className="card dbtablewrap">
+          <table className="dbtable">
+            <thead><tr><th>from</th><th>predicate</th><th>to</th><th>source</th></tr></thead>
+            <tbody>
+              {db.edges.map((e, i) => (
+                <tr key={i}>
+                  <td className="vcell">{entName(e.from_id)}</td>
+                  <td><span className="chip">{e.predicate}</span></td>
+                  <td className="vcell">{entName(e.to_id)}</td>
+                  <td className="muted small">{e.source_id ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === "mentions" && (
+        <div className="card dbtablewrap">
+          <table className="dbtable">
+            <thead><tr><th>name (raw surface)</th><th>type</th><th>source</th></tr></thead>
+            <tbody>
+              {db.mentions.map((m, i) => (
+                <tr key={i}>
+                  <td className="vcell">{m.name}</td>
+                  <td><span className="chip ty">{m.type}</span></td>
+                  <td className="muted small">{m.source_id}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === "relationships" && (
+        <div className="card dbtablewrap">
+          <table className="dbtable">
+            <thead><tr><th>subject</th><th>predicate</th><th>object</th><th>source</th></tr></thead>
+            <tbody>
+              {db.relationships.map((r, i) => (
+                <tr key={i}>
+                  <td className="vcell">{r.subject}</td>
+                  <td><span className="chip">{r.predicate}</span></td>
+                  <td className="vcell">{r.object}</td>
+                  <td className="muted small">{r.source_id}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

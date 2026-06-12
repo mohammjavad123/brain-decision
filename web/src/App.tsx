@@ -7,8 +7,9 @@ import { Trace } from "./components/Trace";
 import { AnswerCard } from "./components/AnswerCard";
 import { MemoryLab } from "./components/MemoryLab";
 import { DatabaseView } from "./components/DatabaseView";
+import { DataModel } from "./components/DataModel";
 
-type Mode = "ask" | "memory" | "database";
+type Mode = "ask" | "memory" | "database" | "schema";
 
 export function App() {
   const [mode, setMode] = useState<Mode>("ask");
@@ -81,7 +82,9 @@ export function App() {
             ? "ask a CEO question · watch the agent think · approve the recommendation"
             : mode === "memory"
             ? "paste a raw item · watch it become typed memory · facts → graph → signals → positions"
-            : "the persisted tables · click a fact to trace it back to its exact source quote"}
+            : mode === "database"
+            ? "the persisted tables · click a fact to trace it back to its exact source quote"
+            : "the exact tables · the connections between them · and why each one exists"}
         </div>
       </header>
 
@@ -94,6 +97,9 @@ export function App() {
         </button>
         <button className={mode === "database" ? "mode on" : "mode"} onClick={() => setMode("database")}>
           Database
+        </button>
+        <button className={mode === "schema" ? "mode on" : "mode"} onClick={() => setMode("schema")}>
+          Data model
         </button>
       </div>
 
@@ -117,8 +123,10 @@ export function App() {
         </>
       ) : mode === "memory" ? (
         <MemoryLab steps={ingestSteps} busy={ingestBusy} onIngest={ingest} onReset={resetMem} />
-      ) : (
+      ) : mode === "database" ? (
         <DatabaseView />
+      ) : (
+        <DataModel />
       )}
     </div>
   );

@@ -84,7 +84,9 @@ export type DbDecision = {
   gaps: string[]; evidence: Citation[]; reasoning: ReasoningPoint[]; human_note: string | null; created_at: string; resolved_at: string | null;
 };
 export type DbEntity = { id: string; name: string; type: string; aliases: string[] };
-export type DbEdge = { from_id: string; predicate: string; to_id: string };
+export type DbEdge = { from_id: string; predicate: string; to_id: string; source_id: string | null };
+export type DbMention = { name: string; type: string; source_id: string };
+export type DbRelationship = { subject: string; predicate: string; object: string; source_id: string };
 
 export type DbData = {
   counts: Record<string, number>;
@@ -96,4 +98,6 @@ export type DbData = {
   decisions: DbDecision[];
   entities: DbEntity[];
   edges: DbEdge[];
+  mentions: DbMention[];
+  relationships: DbRelationship[];
 };
