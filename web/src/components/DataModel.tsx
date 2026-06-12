@@ -334,6 +334,45 @@ const DEEPEN_WALK: { n: string; t: string; d: string }[] = [
   { n: "4", t: "Related-entity facts", d: "from your facts' people/companies, hop ONE edge on the entity graph to a connected entity, and pull its facts (Raj → works_at → Northwind ⇒ Northwind's facts)." },
 ];
 
+// ── the agent (Phase 2) — access · loop · why structured, not ReAct ──
+const AGENT_ACCESS: { kind: "read" | "tool"; what: string; d: string }[] = [
+  { kind: "read", what: "Memory (the bundle)", d: "a position, signals, facts (each with quote + source), contradictions, gaps — what retrieval assembled." },
+  { kind: "tool", what: "deepen", d: "expand memory ALONG THE GRAPH (signal siblings · conflict partners · same-speaker · related-entity, 1 hop). Bounded." },
+  { kind: "tool", what: "web search", d: "fetch GENERIC external/public info (benchmarks, norms). Never private/internal data or company-specific strategy — those stay honest gaps." },
+];
+
+const AGENT_LOOP = `retrieve → assess ─┬─ "answer"         → synthesize → verify → log decision
+                   ├─ "deeper_memory" → deepen ─────┐
+                   └─ "research_web"  → web search ──┘→ re-assess   ⟲ bounded`;
+
+const ASSESS_CHOICES: { choice: string; meaning: string; then: string }[] = [
+  { choice: "answer", meaning: "the evidence is enough to answer well", then: "→ synthesize the cited decision brief" },
+  { choice: "deeper_memory", meaning: "thin, but the missing piece is likely already in memory", then: "→ run deepen (graph hop), then re-assess" },
+  { choice: "research_web", meaning: "the gap needs external / public info", then: "→ web search, fold results in, then re-assess" },
+];
+
+const AGENT_STEPS: { n: string; t: string; d: string }[] = [
+  { n: "1", t: "Retrieve", d: "fetch the bundle from memory (deterministic — no LLM)." },
+  { n: "2", t: "Assess", d: "the LLM makes ONE 3-way decision: answer / deeper_memory / research_web." },
+  { n: "3", t: "Act", d: "the GRAPH executes the choice — run deepen, run web search, or move on. (code executes, not the LLM)" },
+  { n: "4", t: "Observe + loop", d: "re-assess with the new evidence. Bounded: about one deepen hop, at most one research round." },
+  { n: "5", t: "Synthesize", d: "the LLM writes the decision brief — recommendation + cited reasoning + gaps." },
+  { n: "6", t: "Verify + log", d: "drop any ungrounded citation, then log the decision — pending the human's call." },
+];
+
+const REACT_COMPARE: { aspect: string; react: string; ours: string }[] = [
+  { aspect: "Who runs the loop", react: "the LLM — emits tool calls, manages its own scratchpad", ours: "a deterministic graph (state machine)" },
+  { aspect: "What the LLM does", react: "chooses AND drives tools, free-form", ours: "makes one labeled decision per pass" },
+  { aspect: "Bounds", react: "can loop / recurse freely — runaway risk", ours: "explicit caps (~1 deepen hop · ≤1 research round)" },
+  { aspect: "Auditability", react: "a free-text reasoning trace", ours: "every step a named node — what it chose, when" },
+];
+
+const WHY_STRUCTURED: { q: string; how: string }[] = [
+  { q: "Reliable & bounded", how: "the control flow is code, so the loop is ordered and capped — no runaway tool-calling." },
+  { q: "Auditable", how: "every step is a named node; you can show exactly what it decided and when. A defensible decision needs a legible trace, not a hidden scratchpad." },
+  { q: "Judgement at the seams, orchestration in code", how: "the model decides (assess, synthesize); deterministic code routes the loop and runs the tools. The reliable parts never hinge on the model managing control flow." },
+];
+
 export function DataModel() {
   return (
     <div className="dm">
@@ -676,6 +715,94 @@ fact_001  ──contradiction──▶  fact_018   (1 hop across a conflict)`}</
           loosening the distance cutoff</b> — a looser vector search would drag in vaguely-similar facts and drift
           off-topic; following real connections (same signal, same speaker, a linked company, the other side of a
           conflict) keeps every added fact <b>genuinely related</b> to what was already found.
+        </p>
+      </section>
+
+      {/* ── the agent: access · loop · decision ── */}
+      <section className="card">
+        <h3>The agent <span className="muted small">Phase 2 · perceive → decide → act → loop</span></h3>
+        <p className="dmintro">
+          Phase 1 is a deterministic pipeline; <b>Phase 2 is the agent.</b> What makes it an agent is the loop: it
+          perceives the retrieved evidence, <b>decides</b> the next step, <b>acts</b> (runs a tool), observes the result,
+          and loops — adaptively, until it can answer.
+        </p>
+
+        <div className="dmsub">what the agent can access</div>
+        <div className="dmscroll">
+          <table className="dbtable">
+            <thead><tr><th>kind</th><th>what</th><th>detail</th></tr></thead>
+            <tbody>
+              {AGENT_ACCESS.map((a) => (
+                <tr key={a.what}>
+                  <td><span className={"dmbuilt " + (a.kind === "tool" ? "llm" : "code")}>{a.kind}</span></td>
+                  <td className="vcell"><code>{a.what}</code></td>
+                  <td className="muted small">{a.d}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="dmsub">the loop</div>
+        <pre className="dmflow">{AGENT_LOOP}</pre>
+        <ol className="dmsteps">
+          {AGENT_STEPS.map((s) => (
+            <li key={s.n}><span className="dmstepn">{s.n}</span><span className="dmstept"><b>{s.t}</b> — {s.d}</span></li>
+          ))}
+        </ol>
+
+        <div className="dmsub">the decision (assess) — one of three, each pass</div>
+        <div className="dmscroll">
+          <table className="dbtable">
+            <thead><tr><th>choice</th><th>when</th><th>then</th></tr></thead>
+            <tbody>
+              {ASSESS_CHOICES.map((c) => (
+                <tr key={c.choice}>
+                  <td><span className="chip">{c.choice}</span></td>
+                  <td className="muted small">{c.meaning}</td>
+                  <td className="muted small">{c.then}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="card">
+        <h3>Why a structured agent — not a free-form (ReAct) one</h3>
+        <p className="dmintro">
+          An agent can be built two ways: a <b>ReAct</b> loop (the LLM emits raw tool-calls and manages its own control
+          flow) or a <b>structured</b> one (the LLM decides at fixed points; a deterministic graph routes and executes).
+          This is the structured kind.
+        </p>
+        <div className="dmscroll">
+          <table className="dbtable">
+            <thead><tr><th>aspect</th><th>ReAct (free-form)</th><th>this (structured)</th></tr></thead>
+            <tbody>
+              {REACT_COMPARE.map((r) => (
+                <tr key={r.aspect}>
+                  <td className="vcell">{r.aspect}</td>
+                  <td className="muted small">{r.react}</td>
+                  <td className="muted small">{r.ours}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="dmbar">
+          <div className="dmbarh">Why we do it this way</div>
+          {WHY_STRUCTURED.map((b, i) => (
+            <div key={i} className="dmbaritem">
+              <div className="dmbarq">{b.q}</div>
+              <div className="dmbarhow">{b.how}</div>
+            </div>
+          ))}
+        </div>
+
+        <p className="dmintro">
+          The LLM keeps the <b>agency</b> — it chooses the path and triggers the tools. The graph keeps the
+          <b> orchestration</b>. The whole design in one line: <b>the model decides, code executes.</b>
         </p>
       </section>
     </div>
