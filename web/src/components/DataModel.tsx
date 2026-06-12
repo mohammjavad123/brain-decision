@@ -137,13 +137,13 @@ const TABLES: TableDef[] = [
       ["pos_2", "icp", "Mostly mid-market, but recent deals drift toward enterprise", "medium", "[con_2]", "[“win/loss by segment”]"],
     ],
     links: ["fields.fact_ids → facts", "signal_ids → signals", "contradiction_ids → contradictions"],
-    note: "(+ fields[]{claim, fact_ids} cited sub-claims · valid_time · compiled_at · embedding(vector)) — only TWO positions are built: ICP (Q1) and runway (Q3).",
+    note: "(+ fields[]{claim, fact_ids} cited sub-claims · valid_time · compiled_at · embedding(vector)) — only TWO stances are compiled: runway and ICP.",
   },
 ];
 
 // ── the 2nd LLM call (Compose → positions): how a stance is built ──
 const POS_STEPS: { n: string; t: string; d: string }[] = [
-  { n: "1", t: "Fixed topics", d: "Only two positions are built — ICP (Q1) and runway (Q3). Q2's objection is served straight from signals, so it needs no position (“we don't over-build”)." },
+  { n: "1", t: "Fixed topics", d: "Only two stances are compiled — runway and ICP. Recurring customer patterns like objections are served straight from signals, so they need no stance — build only what earns its place." },
   { n: "2", t: "Gather by dimension", d: "For each topic, pull every fact tagged that dimension (skipping web-researched ones), plus that dimension's contradictions and any related signals. Skip the topic if it has no facts." },
   { n: "3", t: "Hand structure to the LLM", d: "It gets the typed facts + contradictions (each with id, tier, date, qualifier) — NOT the raw emails. It reads artifacts, not text." },
   { n: "4", t: "LLM writes the stance", d: "summary (drift-aware — states conflicts plainly), fields[] (each cites fact_ids), confidence (lowered by unresolved conflicts / thin evidence), gaps (concrete missing things — each can later trigger research)." },
@@ -242,23 +242,23 @@ const MENUS: { name: string; fixed: boolean; values: string }[] = [
   { name: "predicate", fixed: false, values: "free text — examples: works_at · founded · invested_in · competes_with" },
 ];
 
-// the design philosophy — the principles behind this build, and why each shaped it
+// the design philosophy — the principles behind this build, in my own words
 const PHILOSOPHY: { q: string; how: string }[] = [
   {
-    q: "Compile on the way in; read artifacts at output — don't improvise.",
-    how: "Memory is COMPILED at ingest (parse → extract → connect → signals → positions). The LLM runs at only TWO seams — Extract (text in) and Compose (stance out); everything structural between them is deterministic code. At question time the agent READS these artifacts — it never re-improvises the facts.",
+    q: "Do the hard thinking once — when the information arrives, not when it's asked for.",
+    how: "Ingest is where the work happens: raw text is parsed, interpreted, linked, and turned into finished structured records. Answering a question is then mostly looking things up over those records — fast and consistent — instead of re-reading the whole week from scratch every time.",
   },
   {
-    q: "Intelligence over features — build only what the questions need.",
-    how: "No over-building: only the positions the questions need (ICP, runway); Q2 is served straight from signals; nothing is gold-plated. Every table earns its place.",
+    q: "Use the model only where language is genuinely needed; let code do the rest.",
+    how: "The model touches exactly two points — turning raw text into typed facts, and writing a stance from already-structured evidence. Merging duplicate names, wiring the graph, comparing values, clustering patterns are all plain code I can read, test, and reproduce. The parts that must be reliable never hinge on a model being consistent.",
   },
   {
-    q: "Every decision is defensible — with receipts.",
-    how: "Every fact carries a verbatim quote + its source, and the quote is re-verified against the source — invented provenance is rejected. Every edge, position and decision traces back to real words. Nothing floats free.",
+    q: "Store nothing the system can't prove.",
+    how: "Every fact keeps the exact words it came from and where they were said, and that quote is checked against the real source before it's saved — if it isn't there, the fact is dropped. So every later claim and link traces back to something real; the system can always show its work.",
   },
   {
-    q: "Operable by an agent, not just a human.",
-    how: "The same brain is exposed over MCP (query_brain · get_provenance · resolve_decision), so an agent can drive the whole loop — not just a human reading this UI.",
+    q: "Build only what earns its place.",
+    how: "A few things that are correct and explainable beat many that are shallow. A compiled stance exists only for topics that truly need one; patterns better expressed as recurring evidence stay that way. Less surface, more trust.",
   },
 ];
 
@@ -481,10 +481,10 @@ export function DataModel() {
         <div className="dmdesign">
           <div className="dmdesignh">Design note — why only two positions (and the production path)</div>
           <p>
-            <b>Scope (on purpose):</b> a position is built for every CEO question that needs an internal stance —
-            <b> ICP (Q1)</b> and <b>runway (Q3)</b>. Q2's objection is served straight from <b>signals</b>, so it needs
-            no position. Two positions = the two questions that need one, and no more — <i>intelligence over features,
-            not gold-plated.</i>
+            <b>Scope (on purpose):</b> a compiled stance is built only for the strategic topics that genuinely need
+            one — here, <b>runway</b> and <b>ICP</b>. Recurring customer patterns like objections are already captured
+            as <b>signals</b>, so they don't need a stance. Few stances, each one earning its place — <i>restraint over
+            surface.</i>
           </p>
           <p>
             <b>Is this what I'd ship to production? No.</b> There I'd make the topic list <b>dynamic</b> — build a
