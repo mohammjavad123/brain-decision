@@ -327,6 +327,13 @@ const RETRIEVE_STEPS: { n: string; t: string; d: string }[] = [
   { n: "6", t: "Cap + attach", d: "trim to 30 facts; attach the contradictions touching them + the position's gaps. Return the bundle." },
 ];
 
+const DEEPEN_WALK: { n: string; t: string; d: string }[] = [
+  { n: "1", t: "Signal-cluster siblings", d: "any signal that already contains one of your facts contributes ALL its other members — the rest of that recurring pattern comes along." },
+  { n: "2", t: "Contradiction partners", d: "for any fact that's one side of a conflict, pull in the other side too." },
+  { n: "3", t: "Same-speaker facts", d: "other facts said by the same people already in your bundle (if Raj is in it, gather Raj's other facts)." },
+  { n: "4", t: "Related-entity facts", d: "from your facts' people/companies, hop ONE edge on the entity graph to a connected entity, and pull its facts (Raj → works_at → Northwind ⇒ Northwind's facts)." },
+];
+
 export function DataModel() {
   return (
     <div className="dm">
@@ -635,12 +642,40 @@ export function DataModel() {
           ))}
         </ol>
 
-        <div className="dmsub">deepen — the optional deeper fetch</div>
+      </section>
+
+      {/* deepen — how the agent expands memory */}
+      <section className="card">
+        <h3>Deepen — how the agent expands memory <span className="muted small">the “deeper_memory” step</span></h3>
         <p className="dmintro">
-          When the agent's <b>assess</b> step finds the evidence thin, <code>expandNeighbors</code> walks <b>further along
-          the graph</b> from the facts in hand — signal-cluster siblings · contradiction partners · same-speaker facts ·
-          related-entity facts (1 hop on the entity edges). It expands <b>along the graph, never by loosening the
-          distance</b> — so it gathers more <b>without drifting off-topic.</b>
+          When the agent's <b>assess</b> step decides the bundle is too thin, it calls <code>expandNeighbors</code> to
+          gather more — but <b>along the graph</b>, not by loosening the search. First, the word it leans on:
+        </p>
+
+        <div className="dmsub">what's a “hop”?</div>
+        <p className="dmintro">
+          Memory is a <b>graph</b>: dots (entities, facts) joined by lines (edges, conflicts). A <b>hop</b> = moving
+          across <i>one</i> line to a directly-connected neighbor — like friends on social media: <b>1 hop</b> = your
+          direct friends, <b>2 hops</b> = friends-of-friends. Deepen takes <b>one hop</b>: close enough to be relevant,
+          short enough not to drift.
+        </p>
+        <pre className="dmflow">{`Raj  ──works_at──▶  Northwind        (1 hop on the entity graph)
+fact_001  ──contradiction──▶  fact_018   (1 hop across a conflict)`}</pre>
+
+        <div className="dmsub">what deepen walks (each pulls neighbors 1 hop out)</div>
+        <ol className="dmsteps">
+          {DEEPEN_WALK.map((s) => (
+            <li key={s.n}>
+              <span className="dmstepn">{s.n}</span>
+              <span className="dmstept"><b>{s.t}</b> — {s.d}</span>
+            </li>
+          ))}
+        </ol>
+        <p className="dmintro">
+          Then it merges the new facts in and caps at <b>30</b>. Crucially it expands <b>along the graph, never by
+          loosening the distance cutoff</b> — a looser vector search would drag in vaguely-similar facts and drift
+          off-topic; following real connections (same signal, same speaker, a linked company, the other side of a
+          conflict) keeps every added fact <b>genuinely related</b> to what was already found.
         </p>
       </section>
     </div>
