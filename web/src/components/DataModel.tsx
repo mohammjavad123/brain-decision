@@ -373,6 +373,57 @@ const WHY_STRUCTURED: { q: string; how: string }[] = [
   { q: "Judgement at the seams, orchestration in code", how: "the model decides (assess, synthesize); deterministic code routes the loop and runs the tools. The reliable parts never hinge on the model managing control flow." },
 ];
 
+// ── final generation: synthesize (cite) + verify (enforce) ──
+const SYNTH_PARTS: { p: string; d: string }[] = [
+  { p: "bottom_line", d: "one line — the decision-useful headline. When evidence conflicts or is conditional, this is the FRAMING, not a false-precise number." },
+  { p: "recommendation", d: "the single next action — ideally the one that gets the missing figure or resolves the decision." },
+  { p: "reasoning", d: "the WHY as a few concise points — EACH backed by the fact-ids that support it (its receipts)." },
+  { p: "gaps", d: "the blind spots — what the evidence could NOT confirm. Stated plainly, never invented." },
+];
+
+const SYNTH_RULES: string[] = [
+  "Use ONLY the provided evidence — never invent beyond it.",
+  "Anything unestablished goes in gaps, never asserted — prefer “I don't know” over bluffing.",
+  "Figures are tied to a date + condition — surface stale / conditional, never collapse to one number.",
+  "Confidence ≤ medium when a load-bearing figure is unverified, conditional, or stale.",
+  "A web/ fact is an EXTERNAL benchmark — say so; never present it as the founder's own data.",
+];
+
+const SYNTH_INPUT = `FACTS (cite these ids):
+- [fact_001] (E2, valid 2026-02-18, src note/board-feb):
+    runway ≈ 14 months — "so about 14 months of runway"
+- [fact_018] (E3, valid 2026-03, ONLY IF: after hiring 2 AEs):
+    runway = 9 months — "…"`;
+
+const SYNTH_OUTPUT = `{
+  "bottom_line": "No single defensible runway yet — 14mo stale, clean burn unknown.",
+  "recommendation": "Get the clean monthly burn before the board update.",
+  "reasoning": [
+    { "point": "the 14-month figure is stale (burn rose)",
+      "fact_ids": ["fact_001", "fact_018"] }
+  ],
+  "gaps": ["current clean monthly burn"]
+}`;
+
+const VERIFY_EXAMPLE: { point: string; cites: string; check: string; verdict: string }[] = [
+  { point: "Runway is ~14 months", cites: "[fact_001]", check: "fact_001 in evidence?  yes", verdict: "grounded ✓" },
+  { point: "Churn is climbing", cites: "[fact_999]", check: "fact_999 in evidence?  no", verdict: "ungrounded ✗" },
+];
+
+const VERIFY_STEPS: { n: string; t: string; d: string }[] = [
+  { n: "1", t: "Collect citations", d: "gather the fact-ids cited across all reasoning points." },
+  { n: "2", t: "Resolve them", d: "look each id up — which ones map to real facts in the bundle." },
+  { n: "3", t: "Grade each point", d: "grounded = cites ≥ 1 id AND every cited id resolves; otherwise ungrounded." },
+  { n: "4", t: "Retry once if needed", d: "any ungrounded point → loop back to assess (deepen/research) and re-synthesize — the support may be in memory but wasn't retrieved." },
+  { n: "5", t: "Keep only grounded", d: "drop ungrounded points; cite ONLY the facts behind the survivors. Nothing grounds → zero citations + confidence downgraded." },
+];
+
+const STACK: { layer: string; d: string }[] = [
+  { layer: "Ingest (Extract)", d: "every fact's quote is verified to exist verbatim in its source — a cited quote is always real." },
+  { layer: "Synthesize (prompt)", d: "use only provided evidence; cite ids per point; unestablished → gaps; prefer “I don't know”." },
+  { layer: "Verify (code)", d: "drop points whose cited ids don't resolve; cite only grounding facts; downgrade / loop if ungrounded. No laundering." },
+];
+
 export function DataModel() {
   return (
     <div className="dm">
@@ -803,6 +854,87 @@ fact_001  ──contradiction──▶  fact_018   (1 hop across a conflict)`}</
         <p className="dmintro">
           The LLM keeps the <b>agency</b> — it chooses the path and triggers the tools. The graph keeps the
           <b> orchestration</b>. The whole design in one line: <b>the model decides, code executes.</b>
+        </p>
+      </section>
+
+      {/* ── synthesize: write + cite ── */}
+      <section className="card">
+        <h3><span className="dmbuilt llm">🧠 seam #2</span> Synthesize — writing the cited brief</h3>
+        <p className="dmintro">
+          At the decision point the LLM writes the brief from <b>only the bundle</b> (never the corpus), and
+          <b> recommends</b> — it never implies it acted.
+        </p>
+
+        <div className="dmsub">it emits four parts</div>
+        <div className="dmscroll">
+          <table className="dbtable">
+            <thead><tr><th>part</th><th>what</th></tr></thead>
+            <tbody>{SYNTH_PARTS.map((s) => <tr key={s.p}><td className="vcell"><code>{s.p}</code></td><td className="muted small">{s.d}</td></tr>)}</tbody>
+          </table>
+        </div>
+
+        <div className="dmsub">how citing works — facts are shown WITH their ids</div>
+        <pre className="dmcode">{SYNTH_INPUT}</pre>
+        <p className="dmintro">Each reasoning point must carry the fact-ids that back it — the model cites by <b>picking from the real ids it was shown</b>:</p>
+        <pre className="dmcode">{SYNTH_OUTPUT}</pre>
+
+        <div className="dmsub">the anti-bluff rules in the prompt</div>
+        <ul className="dmrules">{SYNTH_RULES.map((r) => <li key={r}>{r}</li>)}</ul>
+        <p className="dmintro">But asking isn't enough — a model could cite a wrong id or assert a point with no support. That's what <b>verify</b> is for.</p>
+      </section>
+
+      {/* ── verify: enforce (full detail) ── */}
+      <section className="card">
+        <h3><span className="dmbuilt code">⚙ deterministic</span> Verify — enforcing the citations <span className="muted small">a lookup, not a meaning check</span></h3>
+        <p className="dmintro">
+          Verify checks <b>one thing</b>: for every “why” point, are the facts it cited <b>real facts that were in the
+          evidence?</b> It's a reference <b>lookup</b> — no LLM, it doesn't re-read text or judge truth.
+        </p>
+
+        <div className="dmsub">the per-point check</div>
+        <pre className="dmflow">{`For each reasoning point:
+  (1) does it cite ≥ 1 fact-id?
+  (2) do ALL cited ids resolve to real facts in the evidence?
+  both yes → grounded        either no → ungrounded`}</pre>
+
+        <div className="dmsub">example</div>
+        <div className="dmscroll">
+          <table className="dbtable">
+            <thead><tr><th>point</th><th>cites</th><th>check</th><th>verdict</th></tr></thead>
+            <tbody>
+              {VERIFY_EXAMPLE.map((v) => (
+                <tr key={v.point}>
+                  <td className="vcell">{v.point}</td>
+                  <td className="muted small"><code>{v.cites}</code></td>
+                  <td className="muted small">{v.check}</td>
+                  <td><span className={"chip" + (v.verdict.includes("✓") ? "" : " warn")}>{v.verdict}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="dmsub">what it does with the result</div>
+        <ol className="dmsteps">
+          {VERIFY_STEPS.map((s) => (
+            <li key={s.n}><span className="dmstepn">{s.n}</span><span className="dmstept"><b>{s.t}</b> — {s.d}</span></li>
+          ))}
+        </ol>
+        <p className="dmintro">
+          So “churn is climbing” simply <b>vanishes</b> — never shown, no fake source attached. That's the
+          <b> no-citation-laundering</b> rule: an ungrounded answer can't quietly attach the whole retrieval set as support.
+        </p>
+
+        <div className="dmsub">the 3-layer anti-hallucination stack</div>
+        <div className="dmscroll">
+          <table className="dbtable">
+            <thead><tr><th>layer</th><th>guard</th></tr></thead>
+            <tbody>{STACK.map((s) => <tr key={s.layer}><td className="vcell"><code>{s.layer}</code></td><td className="muted small">{s.d}</td></tr>)}</tbody>
+          </table>
+        </div>
+        <p className="dmintro">
+          <b>One line:</b> the LLM cites at synthesize; code enforces at verify; together with the ingest quote-check,
+          <b> every citation is a real quote backing a real point — or it isn't shown at all.</b>
         </p>
       </section>
     </div>

@@ -517,3 +517,5 @@ button:disabled { opacity: .5; cursor: default; }
 .dmbarq { color: var(--tp); font-weight: 600; font-size: 14px; line-height: 1.5; }
 .dmbarhow { color: var(--ts); font-size: 13px; line-height: 1.55; margin-top: 3px; }
 .dmbarhow::before { content: "→ how: "; color: var(--em); font-family: var(--mono); font-size: 11px; }
+.dmrules { margin: 4px 0 8px; padding-left: 18px; color: var(--ts); font-size: 13px; line-height: 1.6; }
+.dmrules li { margin: 3px 0; }
