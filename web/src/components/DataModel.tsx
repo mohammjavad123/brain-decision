@@ -286,6 +286,47 @@ const LADDER: { tier: string; rule: string }[] = [
   { tier: "candidate", rule: "just 1" },
 ];
 
+// ── Phase 2 retrieval — fetching from memory ──
+const RETRIEVE_TARGETS: { target: string; keyword: string; semantic: string; cutoff: string; keep: string }[] = [
+  { target: "position", keyword: "hint words (runway · burn · cash · raise — or — icp · mid-market · enterprise · drift) → pick that position", semantic: "nearest position by meaning", cutoff: "< 0.65 strict", keep: "at most 1 (none if not confident)" },
+  { target: "signals", keyword: "type words (objection · competitor · pain) → up to 3 of that type", semantic: "nearest signals", cutoff: "< 0.95 loose", keep: "top 5 (both passes merged)" },
+  { target: "facts", keyword: "— (facts come from the chosen position + signals)", semantic: "nearest 10 facts", cutoff: "< 0.95 loose", keep: "union of all sources, then cap 30" },
+];
+
+const RETRIEVE_MATCH = `similarFacts(questionVector, 10)  →
+[ { fact: { id: "fact_001", value: "runway ≈ 14 months", … }, distance: 0.41 },
+  { fact: { id: "fact_018", value: "runway = 9 months",   … }, distance: 0.58 },
+  { fact: { id: "fact_044", value: "…",                   … }, distance: 0.97 } ]
+                                               ↑ > 0.95 → dropped
+keep the rows whose distance < 0.95`;
+
+const RETRIEVE_ROW = `fact_001   ← a kept match is the FULL row, not just an id
+  value:         "runway ≈ 14 months at ~$300k/mo"
+  quote:         "so about 14 months of runway"      ← the receipt
+  source_id:     note/board-feb
+  speaker:       Raj Mehta
+  dimension:     runway · qualifier: at current burn · comparable: 14 months
+  evidence_tier: E2 · confidence: 0.9 · valid_time: 2026-02-18`;
+
+const RETRIEVE_BUNDLE = `{
+  position:  runway   (confidence: medium · gaps: ["current clean burn"])
+  signals:   []
+  facts: [ fact_001  runway ≈ 14 months      "so about 14 months…"    note/board-feb
+           fact_018  runway = 9 months        "…9 months if we hire…"  slack/finance
+           fact_022  burn $380–430k (unclean) "…not clean yet…"         memo/cfo-burn ]
+  contradictions: [ con_1  runway: 18mo vs 9mo — conditional ]
+  gaps:  ["current clean monthly burn"]
+}`;
+
+const RETRIEVE_STEPS: { n: string; t: string; d: string }[] = [
+  { n: "1", t: "Embed the question", d: "turn the question into a vector; lowercase the text for keyword matching." },
+  { n: "2", t: "Pick a position", d: "keyword hit → that position (done, no distance needed). Else the nearest position, but only if distance < 0.65. Else no position." },
+  { n: "3", t: "Pick signals", d: "type-keyword → up to 3 of that type; PLUS semantically-near signals (< 0.95). Merge, keep top 5." },
+  { n: "4", t: "Gather facts", d: "the position's cited facts + EVERY fact on its dimension (dimension-complete) + the signals' facts + the nearest facts (< 0.95). Merge the ids (a duplicate counts once)." },
+  { n: "5", t: "Expand 1 hop", d: "for any fact that's one side of a contradiction, pull in the other side too — never half a conflict." },
+  { n: "6", t: "Cap + attach", d: "trim to 30 facts; attach the contradictions touching them + the position's gaps. Return the bundle." },
+];
+
 export function DataModel() {
   return (
     <div className="dm">
@@ -524,6 +565,82 @@ export function DataModel() {
           So <code>pos_1</code> states the runway stance <b>with its condition intact</b> — confidence <b>medium</b>
           (an unresolved conditional), and a concrete <b>gap</b> (“current clean monthly burn”) that Phase 2 can chase.
           Contrast: <b>signals</b> = customer recurrence (code); <b>positions</b> = internal stance per topic (LLM).
+        </p>
+      </section>
+
+      {/* ── Phase 2 retrieval ── */}
+      <section className="card">
+        <h3>Retrieval — fetching from memory <span className="muted small">Phase 2 · deterministic · no LLM</span></h3>
+        <p className="dmintro">
+          Given a question, retrieval pulls the relevant slice of memory into <b>one bundle</b> — using keyword hints +
+          semantic (vector) search + a graph hop. <b>No LLM chooses what to fetch</b>; the LLM only judges the bundle afterward.
+        </p>
+
+        <div className="dmsub">what “distance” means</div>
+        <p className="dmintro">
+          Every item has an <b>embedding</b> (a meaning-vector); the question becomes one too. <b>Distance</b> = how far
+          apart in meaning (≈0 identical, →1 unrelated). pgvector returns the nearest; a <b>cutoff</b> keeps only
+          close-enough matches. <b>Lower cutoff = stricter.</b>
+        </p>
+
+        <div className="dmsub">the three things it fetches — keyword first, then semantic</div>
+        <div className="dmscroll">
+          <table className="dbtable">
+            <thead><tr><th>target</th><th>keyword pass</th><th>semantic pass</th><th>cutoff</th><th>keep</th></tr></thead>
+            <tbody>
+              {RETRIEVE_TARGETS.map((r) => (
+                <tr key={r.target}>
+                  <td className="vcell"><code>{r.target}</code></td>
+                  <td className="muted small">{r.keyword}</td>
+                  <td className="muted small">{r.semantic}</td>
+                  <td><span className="chip">{r.cutoff}</span></td>
+                  <td className="muted small">{r.keep}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="dmintro">
+          <b>Why two cutoffs?</b> The position is the big routing call — <b>strict (0.65)</b>, better none than the wrong
+          one. Signals and facts are just candidates the LLM judges later — <b>loose (0.95)</b>, favour recall.
+        </p>
+      </section>
+
+      <section className="card">
+        <h3>What you end up holding</h3>
+
+        <div className="dmsub">1 · a semantic match returns FULL rows + a distance (not an id)</div>
+        <pre className="dmcode">{RETRIEVE_MATCH}</pre>
+
+        <div className="dmsub">2 · a kept fact is the complete row — with its receipt</div>
+        <pre className="dmcode">{RETRIEVE_ROW}</pre>
+
+        <div className="dmsub">3 · the bundle — the full picture handed to the next step</div>
+        <pre className="dmcode">{RETRIEVE_BUNDLE}</pre>
+        <p className="dmintro">
+          Every <code>facts[]</code> entry is a full row like the one above — each carrying its own quote + source. So
+          you hold <b>one position</b>, the <b>signals</b>, several <b>complete fact rows</b>, the <b>conflicts</b> touching
+          them, and the <b>gaps</b> — never just an id or a lone value.
+        </p>
+      </section>
+
+      <section className="card">
+        <h3>The full flow, step by step</h3>
+        <ol className="dmsteps">
+          {RETRIEVE_STEPS.map((s) => (
+            <li key={s.n}>
+              <span className="dmstepn">{s.n}</span>
+              <span className="dmstept"><b>{s.t}</b> — {s.d}</span>
+            </li>
+          ))}
+        </ol>
+
+        <div className="dmsub">deepen — the optional deeper fetch</div>
+        <p className="dmintro">
+          When the agent's <b>assess</b> step finds the evidence thin, <code>expandNeighbors</code> walks <b>further along
+          the graph</b> from the facts in hand — signal-cluster siblings · contradiction partners · same-speaker facts ·
+          related-entity facts (1 hop on the entity edges). It expands <b>along the graph, never by loosening the
+          distance</b> — so it gathers more <b>without drifting off-topic.</b>
         </p>
       </section>
     </div>
