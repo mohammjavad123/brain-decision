@@ -8,7 +8,7 @@ Reads a founder's week (calls, emails, notes, a tweet, Slack), builds a **cited,
 
 ## Run it — one command
 
-**Prerequisites:** Node **20+** and a **Gemini API key** (free from [Google AI Studio](https://aistudio.google.com/apikey)). No Docker, no DB to install.
+**Prerequisites:** Node **18+** and a **Gemini API key** (free from [Google AI Studio](https://aistudio.google.com/apikey)). No Docker, no DB to install.
 
 ```bash
 git clone https://github.com/mohammjavad123/brain-decision && cd brain-decision
@@ -42,12 +42,14 @@ raw item ─[extract: LLM]→ typed facts ─[verify quote · embed]→ stored
 
 **Store:** one **Postgres + pgvector** database (relational + vectors in the same row). Local = PGlite (in-process, zero setup). **Bi-temporal & append-only** — every record has `valid_time`, `learned_time`, `superseded_at`; nothing is overwritten.
 
-**The 8 tables:**
+**The tables — 8 compiled, + 2 raw extraction tables:**
 
 | table | holds |
 |---|---|
 | `sources` | raw items (id = hash of body) |
 | `facts` | typed atoms: value · verbatim quote + offsets · tier · dimension · qualifier · comparable · embedding |
+| `mentions` | raw entity mentions per source (before resolution) |
+| `relationships` | raw subject–predicate→object per source (before wiring) |
 | `entities` | one canonical person / company / investor / competitor (+ aliases) |
 | `edges` | typed graph: `subject –predicate→ object`, plus scored `fact →member_of→ signal` |
 | `signals` | a claim aggregated across calls: count · companies · promotion tier |

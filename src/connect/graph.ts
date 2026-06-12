@@ -18,7 +18,15 @@ export function wireEdges(relationships: Relationship[], entities: Entity[]): Ed
   const resolve = (name: string): string | null => {
     const n = norm(name);
     if (lookup.has(n)) return lookup.get(n)!;
-    for (const [k, id] of lookup) if (k.includes(n) || n.includes(k)) return id; // containment fallback
+    // fallback: WHOLE-TOKEN containment only (one name's tokens ⊆ the other's), and skip very short names —
+    // so a partial like "ai" can't substring-match an unrelated entity ("N-ai-r"). "Acme" → "Acme Freight" still resolves.
+    if (n.length < 3) return null;
+    const nTok = n.split(" ");
+    const subset = (a: string[], b: string[]) => a.every((t) => b.includes(t));
+    for (const [k, id] of lookup) {
+      const kTok = k.split(" ");
+      if (subset(nTok, kTok) || subset(kTok, nTok)) return id;
+    }
     return null;
   };
 
