@@ -1,12 +1,14 @@
-import { createServer } from "node:http";
+import { createServer, type IncomingMessage } from "node:http";
 import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join, extname } from "node:path";
 import { seed } from "../seed.js";
 import { streamAgent } from "../answer/graph.js";
 import {
-  getDecision, counts, clearCompiled, allMentions, allRelationships,
+  getDecision, counts, clearCompiled, allMentions, allRelationships, resetTenant,
   allSources, currentFacts, currentSignals, currentPositions, currentContradictions, listDecisions, allEntities, allEdges,
 } from "../db/queries.js";
+import { withTenant, DEFAULT_TENANT } from "../db/client.js";
+import { register, login, signToken, verifyToken, ensureDemoUser, type Claims } from "../auth.js";
 import { resolveAndFold } from "../answer/closeLoop.js";
 import { embedOne } from "../llm/embed.js";
 import { researchAvailable } from "../research/tavily.js";
@@ -33,6 +35,21 @@ const MIME: Record<string, string> = {
   ".svg": "image/svg+xml", ".ico": "image/x-icon", ".png": "image/png", ".woff2": "font/woff2",
 };
 
+// ── request log (manual-test observability) — every action prints one clear line in the terminal,
+// showing the auth decision + the tenant, so you can SEE the boundary working as you click around.
+const short = (id?: string | null): string => (id ? id.slice(0, 8) : "—");
+const ts = (): string => new Date().toISOString().slice(11, 19);
+const rlog = (msg: string): void => console.log(`  ${ts()}  ${msg}`);
+
+const readJson = (req: IncomingMessage): Promise<any> =>
+  new Promise((resolve) => {
+    let b = "";
+    req.on("data", (c) => (b += c));
+    req.on("end", () => {
+      try { resolve(JSON.parse(b || "{}")); } catch { resolve({}); }
+    });
+  });
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
 
@@ -42,13 +59,85 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // ── AUTH ──────────────────────────────────────────────────────────────────────────────────────
+  // Public surfaces: /register, /login, and the static UI. Everything else needs a valid JWT.
+  // The tenant comes from the TOKEN (signed, unforgeable) — never from the URL — so no one can read
+  // another company's brain by typing its name.
+  if (req.method === "POST" && url.pathname === "/register") {
+    try {
+      const { name, email, password } = await readJson(req);
+      if (!name || !email || !password) {
+        res.writeHead(400, { "Content-Type": "application/json", ...CORS });
+        res.end(JSON.stringify({ error: "name, email and password are required" }));
+        return;
+      }
+      const claims = await register(name, email, password); // creates a new tenant (UUID) + its first user
+      const token = await signToken(claims);
+      rlog(`POST /register → 200 · NEW company "${name}" · tenant ${short(claims.tenant_id)} · user ${claims.email}`);
+      res.writeHead(200, { "Content-Type": "application/json", ...CORS });
+      res.end(JSON.stringify({ token, tenant_id: claims.tenant_id, email: claims.email }));
+    } catch (e) {
+      rlog(`POST /register → 400 · ${(e as Error).message}`);
+      res.writeHead(400, { "Content-Type": "application/json", ...CORS });
+      res.end(JSON.stringify({ error: (e as Error).message })); // e.g. duplicate email (UNIQUE)
+    }
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/login") {
+    try {
+      const { email, password } = await readJson(req);
+      const claims = await login(email ?? "", password ?? "");
+      if (!claims) {
+        rlog(`POST /login → 401 · invalid credentials (${email ?? "—"})`);
+        res.writeHead(401, { "Content-Type": "application/json", ...CORS });
+        res.end(JSON.stringify({ error: "invalid email or password" }));
+        return;
+      }
+      const token = await signToken(claims);
+      rlog(`POST /login → 200 · ${claims.email} · tenant ${short(claims.tenant_id)}`);
+      res.writeHead(200, { "Content-Type": "application/json", ...CORS });
+      res.end(JSON.stringify({ token, tenant_id: claims.tenant_id, email: claims.email }));
+    } catch (e) {
+      res.writeHead(400, { "Content-Type": "application/json", ...CORS });
+      res.end(JSON.stringify({ error: (e as Error).message }));
+    }
+    return;
+  }
+
+  // Verify the bearer token (if any). The tenant is whatever the token says — signed, so unforgeable.
+  // Header for fetch(); ?token= fallback for the SSE endpoints (EventSource can't set headers). In
+  // production the token would ride in an httpOnly cookie, which EventSource sends automatically.
+  let claims: Claims | null = null;
+  const bearer = (req.headers.authorization ?? "").replace(/^Bearer\s+/i, "") || (url.searchParams.get("token") ?? "");
+  if (bearer) {
+    try { claims = await verifyToken(bearer); } catch { claims = null; } // forged/expired → treated as no auth
+  }
+
+  // Every data surface requires auth — INCLUDING the destructive /reset (Michael's point 2: no
+  // unauthenticated endpoint can drop the decision log).
+  const API_PATHS = ["/ask", "/ingest", "/db", "/reset", "/resolve", "/corpus"];
+  if (API_PATHS.includes(url.pathname) && !claims) {
+    rlog(`${req.method} ${url.pathname} → 401 · BLOCKED (${bearer ? "invalid/expired token" : "no token"})`);
+    res.writeHead(401, { "Content-Type": "application/json", ...CORS });
+    res.end(JSON.stringify({ error: "unauthorized — log in first" }));
+    return;
+  }
+  const tenant = claims?.tenant_id ?? DEFAULT_TENANT; // every DB branch below runs inside withTenant(tenant, …)
+  if (API_PATHS.includes(url.pathname)) {
+    rlog(`${req.method} ${url.pathname} · ✓ auth ${claims!.email} · tenant ${short(tenant)}`);
+  }
+
   if (req.method === "GET" && url.pathname === "/ask") {
     const q = url.searchParams.get("q") ?? "";
+    rlog(`        ↳ ask "${q.slice(0, 60)}${q.length > 60 ? "…" : ""}" (answering from tenant ${short(tenant)} only)`);
     res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive", ...CORS });
     try {
-      for await (const step of streamAgent(q)) {
-        res.write(`data: ${JSON.stringify(step)}\n\n`);
-      }
+      await withTenant(tenant, async () => {
+        for await (const step of streamAgent(q)) {
+          res.write(`data: ${JSON.stringify(step)}\n\n`);
+        }
+      });
     } catch (e) {
       res.write(`data: ${JSON.stringify({ node: "error", label: (e as Error).message, decision: null })}\n\n`);
     }
@@ -64,6 +153,7 @@ const server = createServer(async (req, res) => {
     const send = (ev: Record<string, unknown>) => res.write(`data: ${JSON.stringify(ev)}\n\n`);
     const trace = (stage: string) => (m: string) => send({ stage, phase: "active", label: stage, detail: [m] });
     try {
+      await withTenant(tenant, async () => {
       // 1. PARSE — pasted text → one or MORE typed Sources (a paste can carry a whole batch)
       send({ stage: "parse", phase: "active", label: "parsing pasted items", detail: [] });
       const sources = parseSources(url.searchParams.get("src") ?? "");
@@ -125,6 +215,7 @@ const server = createServer(async (req, res) => {
 
       const c = await counts();
       send({ stage: "done", phase: "done", label: dup ? "no change (already ingested)" : "memory updated", detail: [], data: { counts: c } });
+      });
     } catch (e) {
       send({ stage: "error", phase: "done", label: (e as Error).message, detail: [] });
     }
@@ -156,9 +247,10 @@ const server = createServer(async (req, res) => {
   // click a fact and trace it back to its verbatim source quote (provenance is a row, not a footnote).
   if (req.method === "GET" && url.pathname === "/db") {
     try {
-      const [sources, facts, signals, positions, contradictions, decisions, entities, edges, mentions, relationships, c] = await Promise.all([
+      const [sources, facts, signals, positions, contradictions, decisions, entities, edges, mentions, relationships, c] = await withTenant(tenant, () => Promise.all([
         allSources(), currentFacts(), currentSignals(), currentPositions(), currentContradictions(), listDecisions(), allEntities(), allEdges(), allMentions(), allRelationships(), counts(),
-      ]);
+      ]));
+      rlog(`        ↳ /db → 200 · ${facts.length} facts · ${sources.length} sources · ${decisions.length} decisions (tenant ${short(tenant)})`);
       res.writeHead(200, { "Content-Type": "application/json", ...CORS });
       res.end(JSON.stringify({
         counts: c,
@@ -183,12 +275,16 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // Wipe the WHOLE memory — fresh empty brain — so a user can start a new subject and rebuild by pasting.
-  // Drops everything (facts, signals, positions, decision log included); same in-process DB, no restart.
+  // Wipe THIS TENANT's memory — fresh empty brain for them — so a user can start a new subject and rebuild
+  // by pasting. RLS-scoped (runs as app_user): deletes only the tenant's rows, never another tenant's, and
+  // leaves the schema in place. No table drops, same in-process DB, no restart.
   if (req.method === "POST" && url.pathname === "/reset") {
     try {
-      await migrate({ reset: true });
-      const c = await counts();
+      const c = await withTenant(tenant, async () => {
+        await resetTenant();
+        return counts();
+      });
+      rlog(`        ↳ /reset → 200 · tenant ${short(tenant)} wiped (other tenants untouched)`);
       res.writeHead(200, { "Content-Type": "application/json", ...CORS });
       res.end(JSON.stringify({ ok: true, counts: c }));
     } catch (e) {
@@ -204,12 +300,18 @@ const server = createServer(async (req, res) => {
     req.on("end", async () => {
       try {
         const { id, verdict, note } = JSON.parse(body || "{}");
-        if (!(await getDecision(id))) {
+        const found = await withTenant(tenant, async () => {
+          if (!(await getDecision(id))) return false;
+          await resolveAndFold(id, verdict, note ?? null); // record verdict + fold outcome back into memory
+          return true;
+        });
+        if (!found) {
+          rlog(`        ↳ /resolve → 404 · no decision ${id} in tenant ${short(tenant)}`);
           res.writeHead(404, { "Content-Type": "application/json", ...CORS });
           res.end(JSON.stringify({ error: "no such decision" }));
           return;
         }
-        await resolveAndFold(id, verdict, note ?? null); // record verdict + fold outcome back into memory
+        rlog(`        ↳ /resolve → 200 · decision ${id} ${verdict} · folded into tenant ${short(tenant)}`);
         res.writeHead(200, { "Content-Type": "application/json", ...CORS });
         res.end(JSON.stringify({ ok: true, status: verdict }));
       } catch (e) {
@@ -270,6 +372,8 @@ server.listen(PORT, async () => {
   //    (the Memory tab shows the live build; we don't spam the console). SKIP_SEED=1 boots light and lets
   //    you build via Ingest instead.
   try {
+    await migrate(); // idempotent — ensures the tenant boundary (app_user role + RLS policies) exists on every boot, incl. an already-built brain
+    await ensureDemoUser(); // demo@demo.test / demo1234 → the seeded 'demo' tenant, so the login box works out of the box
     let c = await counts();
     if (c.facts === 0 && !process.env.SKIP_SEED && keyOk) {
       console.log("  ◷ building the demo corpus once (first run; ~1-2 min · SKIP_SEED=1 to skip)…");

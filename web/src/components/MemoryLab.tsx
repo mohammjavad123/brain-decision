@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { IngestData, IngestStep } from "../types";
-import { loadCorpusText } from "../api";
+import { loadCorpusText, fetchDb } from "../api";
 import { EXAMPLES, type Example } from "../examples";
 
 const STAGES = [
@@ -105,14 +105,34 @@ export function MemoryLab({
   const [loaded, setLoaded] = useState<Example | null>(null);
   const [copied, setCopied] = useState<string | null>(null); // last question copied to the clipboard
 
+  // Hydrate from the persisted DB on mount: if THIS tenant already has memory, show its graph/facts/
+  // signals/positions right away — the build view isn't only live, it reflects what's stored. Tenant-
+  // scoped by the token, so each company sees only its own.
+  const [hydrated, setHydrated] = useState<IngestData | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetchDb()
+      .then((db) => {
+        if (!alive || (db.facts.length === 0 && db.entities.length === 0)) return; // empty brain → nothing to show
+        setHydrated({
+          sources: db.sources, facts: db.facts, entities: db.entities, edges: db.edges,
+          contradictions: db.contradictions, signals: db.signals, positions: db.positions, counts: db.counts,
+        });
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   function copyQ(q: string) {
     navigator.clipboard?.writeText(q).then(() => {
       setCopied(q);
       setTimeout(() => setCopied((c) => (c === q ? null : c)), 1400);
     });
   }
-  // each stage's done event carries its own data slice; merge them into one accumulated view
-  const acc = useMemo(() => steps.reduce<IngestData>((a, s) => (s.data ? { ...a, ...s.data } : a), {}), [steps]);
+  // each stage's done event carries its own data slice; merge them into one accumulated view.
+  // No live ingest this session → fall back to the hydrated DB snapshot so the graph is always there.
+  const live = useMemo(() => steps.reduce<IngestData>((a, s) => (s.data ? { ...a, ...s.data } : a), {}), [steps]);
+  const acc: IngestData = steps.length > 0 ? live : (hydrated ?? {});
   const traceLines = useMemo(
     () => steps.filter((s) => s.phase === "active" && s.detail.length).flatMap((s) => s.detail.map((d) => ({ stage: s.stage, d }))),
     [steps],

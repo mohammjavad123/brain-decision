@@ -22,6 +22,9 @@ export const config = {
   synthesizeModel: process.env.SYNTHESIZE_MODEL ?? (isG ? "gemini-2.5-pro" : "gpt-4o"), // the decision point — Pro for calibration, with bounded thinking (reasoning_effort) for speed; set SYNTHESIZE_MODEL=gemini-2.5-flash to shave more latency
   dataDir: process.env.DATA_DIR ?? "./.data/brain",
   corpusDir: process.env.CORPUS_DIR ?? "./data/corpus",
+  // The secret that signs/verifies auth JWTs. MUST be set in production (a leaked/guessable secret = forgeable
+  // tokens = a broken tenant boundary). The dev default only exists so the demo runs out of the box.
+  jwtSecret: process.env.JWT_SECRET ?? "dev-insecure-secret-change-me",
 } as const;
 
 /** Embedding dimensions — must match the active provider/model so the pgvector column lines up. */

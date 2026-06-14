@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
-import { askStream, ingestStream, resetMemory, resolveDecision } from "./api";
+import { askStream, ingestStream, resetMemory, resolveDecision, getToken, logout } from "./api";
 import type { Decision, IngestStep, Status, Step } from "./types";
+import { Login } from "./components/Login";
 import { QueryBox } from "./components/QueryBox";
 import { AgentFlow } from "./components/AgentFlow";
 import { Trace } from "./components/Trace";
@@ -10,8 +11,29 @@ import { DatabaseView } from "./components/DatabaseView";
 import { DataModel } from "./components/DataModel";
 
 type Mode = "ask" | "memory" | "database" | "schema";
+type Auth = { token: string; email: string };
 
 export function App() {
+  // The auth gate. This is the ONLY state that survives login/logout. The actual app below is a separate
+  // component mounted with key={token}, so switching company fully REMOUNTS it — every brain's UI state
+  // (the build-memory graph, ask results, fetched tables) is wiped, never carried across tenants.
+  const [auth, setAuth] = useState<Auth | null>(() => {
+    const t = getToken();
+    return t ? { token: t, email: "you" } : null;
+  });
+
+  if (!auth) return <Login onAuthed={(a) => setAuth({ token: a.token, email: a.email })} />;
+
+  return (
+    <MainApp
+      key={auth.token}
+      auth={auth}
+      onLogout={() => { logout(); setAuth(null); }}
+    />
+  );
+}
+
+function MainApp({ auth, onLogout }: { auth: Auth; onLogout: () => void }) {
   const [mode, setMode] = useState<Mode>("ask");
 
   // ── ask mode ──
@@ -76,6 +98,10 @@ export function App() {
   return (
     <div className="wrap">
       <header>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: ".6rem", alignItems: "center", fontSize: ".82rem" }}>
+          <span className="sub">signed in · {auth.email}</span>
+          <button className="tab" onClick={onLogout}>Log out</button>
+        </div>
         <h1>Decision Brain</h1>
         <div className="sub">
           {mode === "ask"

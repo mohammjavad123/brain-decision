@@ -4,9 +4,50 @@ import type { DbData, IngestStep, Status, Step } from "./types";
 // Server-Sent Events through Vite's dev proxy, which can buffer/drop them.
 const API = "http://localhost:8787";
 
+// ── AUTH ─────────────────────────────────────────────────────────────────────────────────────────
+// The JWT lives in localStorage; it's attached to every request so the server knows the tenant. (For a
+// demo this is fine; production would use an httpOnly cookie — see the production plan.)
+export const getToken = (): string | null => localStorage.getItem("token");
+const setToken = (t: string | null): void => { t ? localStorage.setItem("token", t) : localStorage.removeItem("token"); };
+export const logout = (): void => setToken(null);
+
+const authHeaders = (): Record<string, string> => {
+  const t = getToken();
+  return t ? { Authorization: "Bearer " + t } : {};
+};
+// EventSource can't set headers, so the SSE endpoints carry the token as a query param instead.
+const tokenQS = (): string => {
+  const t = getToken();
+  return t ? "&token=" + encodeURIComponent(t) : "";
+};
+
+export type Auth = { token: string; tenant_id: string; email: string };
+
+export async function login(email: string, password: string): Promise<Auth> {
+  const r = await fetch(API + "/login", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error ?? "login failed");
+  setToken(d.token);
+  return d as Auth;
+}
+
+export async function registerCompany(name: string, email: string, password: string): Promise<Auth> {
+  const r = await fetch(API + "/register", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, email, password }),
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error ?? "registration failed");
+  setToken(d.token);
+  return d as Auth;
+}
+
 /** Open the agent's SSE stream; onStep per graph node, onDone when finished. Surfaces errors as a step. */
 export function askStream(q: string, onStep: (s: Step) => void, onDone: () => void): EventSource {
-  const es = new EventSource(API + "/ask?q=" + encodeURIComponent(q));
+  const es = new EventSource(API + "/ask?q=" + encodeURIComponent(q) + tokenQS());
   let got = false;
   es.onmessage = (e) => {
     got = true;
@@ -42,7 +83,7 @@ export function askStream(q: string, onStep: (s: Step) => void, onDone: () => vo
 
 /** Stream the ingest pipeline (Memory tab): one event per stage as a pasted item becomes memory. */
 export function ingestStream(src: string, onStep: (s: IngestStep) => void, onDone: () => void): EventSource {
-  const es = new EventSource(API + "/ingest?src=" + encodeURIComponent(src));
+  const es = new EventSource(API + "/ingest?src=" + encodeURIComponent(src) + tokenQS());
   let got = false;
   es.onmessage = (e) => {
     got = true;
@@ -69,20 +110,20 @@ export function ingestStream(src: string, onStep: (s: IngestStep) => void, onDon
 
 /** Fetch the raw corpus as one pasteable batch (all items) to ingest live. */
 export async function loadCorpusText(): Promise<string> {
-  const r = await fetch(API + "/corpus");
+  const r = await fetch(API + "/corpus", { headers: authHeaders() });
   return r.text();
 }
 
 /** Fetch the persisted tables for the Database tab (facts, sources, decisions… with provenance). */
 export async function fetchDb(): Promise<DbData> {
-  const r = await fetch(API + "/db");
+  const r = await fetch(API + "/db", { headers: authHeaders() });
   if (!r.ok) throw new Error(`db fetch failed (${r.status})`);
   return r.json();
 }
 
-/** Wipe the whole memory — fresh empty brain — so a new subject can be built from scratch. */
+/** Wipe THIS tenant's memory — fresh empty brain — so a new subject can be built from scratch. */
 export async function resetMemory(): Promise<{ ok: boolean; counts?: Record<string, number>; error?: string }> {
-  const r = await fetch(API + "/reset", { method: "POST" });
+  const r = await fetch(API + "/reset", { method: "POST", headers: authHeaders() });
   return r.json();
 }
 
@@ -90,7 +131,7 @@ export async function resetMemory(): Promise<{ ok: boolean; counts?: Record<stri
 export async function resolveDecision(id: string, verdict: Status): Promise<void> {
   await fetch(API + "/resolve", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ id, verdict }),
   });
 }
