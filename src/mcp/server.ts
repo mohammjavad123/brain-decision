@@ -4,6 +4,8 @@ import { answer } from "../answer/index.js";
 import { formatDecision } from "../format.js";
 import { provenanceForFact, getDecision } from "../db/queries.js";
 import { resolveAndFold } from "../answer/closeLoop.js";
+import { withTenant, DEFAULT_TENANT } from "../db/client.js";
+import { migrate } from "../db/migrate.js";
 
 /**
  * The agent surface (FastMCP over stdio) — three tools, one per verb of the design: DECIDE · VERIFY · CLOSE.
@@ -17,6 +19,10 @@ import { resolveAndFold } from "../answer/closeLoop.js";
  *
  * No tool ever takes an autonomous action; `resolve_decision` only RECORDS a verdict it is given.
  * (Switching to httpStream for remote access is a one-line change to `start` below.)
+ *
+ * Every tool runs inside withTenant() so the same Row-Level Security boundary as the web app applies here.
+ * This stdio surface is single-tenant (DEFAULT_TENANT); a remote/multi-tenant deployment would derive the
+ * tenant from the authenticated MCP session instead.
  */
 const server = new FastMCP({ name: "decision-brain", version: "0.1.0" });
 
@@ -29,10 +35,11 @@ server.addTool({
     "web search — all inside this one call. Returns a cited recommendation and logs a pending decision. " +
     "It recommends only; the human decides (see resolve_decision).",
   parameters: z.object({ question: z.string() }),
-  execute: async ({ question }) => {
-    const { decision } = await answer(question);
-    return formatDecision(decision);
-  },
+  execute: ({ question }) =>
+    withTenant(DEFAULT_TENANT, async () => {
+      const { decision } = await answer(question);
+      return formatDecision(decision);
+    }),
 });
 
 // VERIFY — the receipts: any cited fact → its exact source.
@@ -40,7 +47,8 @@ server.addTool({
   name: "get_provenance",
   description: "Walk a fact id back to its exact source: verbatim quote, speaker, location, and the source item.",
   parameters: z.object({ fact_id: z.string() }),
-  execute: async ({ fact_id }) => {
+  execute: ({ fact_id }) =>
+    withTenant(DEFAULT_TENANT, async () => {
     const p = await provenanceForFact(fact_id);
     if (!p) return `No fact ${fact_id}`;
     return JSON.stringify(
@@ -53,7 +61,7 @@ server.addTool({
       null,
       2,
     );
-  },
+    }),
 });
 
 // CLOSE THE LOOP — record the human verdict; fold the outcome back into memory.
@@ -63,11 +71,17 @@ server.addTool({
     "Record the human's approve/reject verdict on a logged decision, and fold the outcome back into memory so " +
     "future queries retrieve it. The human decides; this only records the verdict it is given — it never approves on its own.",
   parameters: z.object({ id: z.string(), verdict: z.enum(["approved", "rejected"]), note: z.string().optional() }),
-  execute: async ({ id, verdict, note }) => {
-    if (!(await getDecision(id))) return `No decision ${id}`;
-    await resolveAndFold(id, verdict, note ?? null);
-    return `Decision ${id} → ${verdict} · folded back into memory`;
-  },
+  execute: ({ id, verdict, note }) =>
+    withTenant(DEFAULT_TENANT, async () => {
+      if (!(await getDecision(id))) return `No decision ${id}`;
+      await resolveAndFold(id, verdict, note ?? null);
+      return `Decision ${id} → ${verdict} · folded back into memory`;
+    }),
 });
+
+// Ensure the tenant boundary exists before serving (idempotent): the app_user role + RLS policies + the
+// demo tenant must be in place, or withTenant() below would fail on a never-seeded DB. No stdout output,
+// so it's safe for the stdio transport.
+await migrate();
 
 await server.start({ transportType: "stdio" });

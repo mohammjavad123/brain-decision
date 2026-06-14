@@ -2,6 +2,8 @@ import { seed } from "./seed.js";
 import { answer } from "./answer/index.js";
 import { formatDecision } from "./format.js";
 import { resolveAndFold } from "./answer/closeLoop.js";
+import { migrate } from "./db/migrate.js";
+import { withTenant, DEFAULT_TENANT } from "./db/client.js";
 import {
   listDecisions,
   getDecision,
@@ -27,12 +29,18 @@ function usage(): void {
 }
 
 async function main(): Promise<void> {
-  switch (cmd) {
-    case "seed": {
-      await seed({ reset: flags.includes("--reset") });
-      break;
-    }
+  // `seed` does its own tenant handling (it migrates as the owner, then stamps the demo tenant).
+  if (cmd === "seed") {
+    await seed({ reset: flags.includes("--reset") });
+    process.exit(0);
+  }
 
+  // Every other CLI command operates on the demo tenant, RLS-scoped — exactly like an authenticated demo
+  // user. Without this, inserts would violate tenant_id NOT NULL, and reads (as superuser) would bypass RLS
+  // and span every tenant. migrate() is idempotent and guarantees the app_user role + policies exist.
+  await migrate();
+  await withTenant(DEFAULT_TENANT, async () => {
+  switch (cmd) {
     case "ask": {
       const q = args.join(" ").trim();
       if (!q) return usage();
@@ -96,6 +104,7 @@ async function main(): Promise<void> {
     default:
       usage();
   }
+  });
   process.exit(0);
 }
 

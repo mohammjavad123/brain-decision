@@ -154,6 +154,18 @@ export async function clearCompiled(): Promise<void> {
   await q(`DELETE FROM entities`);
 }
 
+/**
+ * Wipe ONE tenant's whole brain — used by the live "fresh brain" reset. Unlike `migrate --reset` (which
+ * DROPs tables and is a superuser/dev operation), this runs under `withTenant` as app_user, so RLS scopes
+ * every DELETE to the active tenant: a tenant can only ever clear its OWN rows, never another's, and the
+ * schema/other tenants are untouched. Facts are deleted before sources (the one real FK).
+ */
+export async function resetTenant(): Promise<void> {
+  for (const t of ["decisions", "positions", "contradictions", "signals", "edges", "entities", "facts", "mentions", "relationships", "sources"]) {
+    await q(`DELETE FROM ${t}`);
+  }
+}
+
 export async function insertDecision(d: Decision): Promise<void> {
   await q(
     `INSERT INTO decisions (id,question,answer,confidence,evidence,reasoning,contradiction_ids,research_fact_ids,

@@ -1,4 +1,5 @@
 import { migrate } from "./db/migrate.js";
+import { setSeedTenant, DEFAULT_TENANT } from "./db/client.js";
 import { ingest } from "./ingest/pipeline.js";
 import { connect } from "./connect/index.js";
 import { buildAndStoreSignals } from "./signals/index.js";
@@ -13,6 +14,7 @@ export async function seed(opts: { reset?: boolean; log?: (m: string) => void } 
 
   log("→ migrate");
   await migrate({ reset: opts.reset });
+  await setSeedTenant(DEFAULT_TENANT); // built rows belong to the demo tenant (superuser write → DEFAULT stamps it)
 
   log("→ ingest  (extract → verify quote → embed → store)");
   const ing = await ingest({ log });

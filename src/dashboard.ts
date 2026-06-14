@@ -1,4 +1,6 @@
 import { writeFileSync } from "node:fs";
+import { migrate } from "./db/migrate.js";
+import { withTenant, DEFAULT_TENANT } from "./db/client.js";
 import {
   counts,
   currentPositions,
@@ -18,7 +20,9 @@ import {
  * provenance), sources, and the decision log — so you can SEE what the brain holds.
  */
 async function main(): Promise<void> {
-  const data = {
+  await migrate(); // ensure the schema + app_user role exist (idempotent)
+  // Read the demo tenant, RLS-scoped — without this, a superuser read would span every tenant.
+  const data = await withTenant(DEFAULT_TENANT, async () => ({
     counts: await counts(),
     positions: await currentPositions(),
     contradictions: await currentContradictions(),
@@ -28,7 +32,7 @@ async function main(): Promise<void> {
     facts: await currentFacts(),
     sources: await allSources(),
     decisions: await listDecisions(),
-  };
+  }));
   const json = JSON.stringify(data).replace(/</g, "\\u003c");
   writeFileSync("dashboard.html", HTML(json));
   console.log("✓ wrote dashboard.html — open it in a browser (double-click).");
