@@ -24,8 +24,9 @@ Open **http://localhost:8787**. `npm start` builds the UI, **serves UI + API on 
 | `GEMINI_API_KEY` | **required** |
 | `TAVILY_API_KEY` | optional — web research (degrades honestly without it) |
 | `EMBEDDING_PROVIDER` | optional — defaults to a free, local 768-dim model |
+| `JWT_SECRET` | optional locally (dev fallback) — **set a real random value in production** (`openssl rand -hex 32`); signs the auth tokens |
 
-*In the UI:* **Ask the brain** (watch the agent think) · **Build memory** → *load corpus → Ingest* (watch raw text become memory live).
+*In the UI:* **log in** with the seeded demo account **`demo@demo.test` / `demo1234`** (or **register a new company** for a fresh, isolated brain) → **Ask the brain** · **Build memory** → *load corpus → Ingest*.
 *Troubleshooting:* port busy → `lsof -ti:8787 | xargs kill`; fresh start → delete `.data/`.
 
 ---
@@ -56,6 +57,8 @@ raw item ─[extract: LLM]→ typed facts ─[verify quote · embed]→ stored
 | `contradictions` | conflicts as rows: direct / conditional / drift |
 | `positions` | compiled stance (ICP, runway) + per-field citations + gaps |
 | `decisions` | append-only log: question · answer · confidence · evidence · recommendation · human verdict |
+
+*Plus `tenants` + `users` (identity), and a `tenant_id` on every table above — see [Multi-tenancy & auth](#multi-tenancy--auth-production-angle).*
 
 ## pgvector / similarity — used in 3 places
 
@@ -137,5 +140,28 @@ npx @modelcontextprotocol/inspector npm run mcp
 *(Running `npm run mcp` on its own just waits on stdio for a client to connect — a “could not infer client capabilities” notice there is expected, not an error.)*
 
 > ⚠ The local store (PGlite) is **single-process** — run **either** the web UI (`npm start`) **or** the MCP server, never both at once (they share `.data/`).
+
+---
+
+## Multi-tenancy & auth (production angle)
+
+One deployment, many companies — each a **tenant**, fully isolated, so one company's facts can never reach another's answer.
+
+**The boundary lives in the database, not the app code.** Every table carries a `tenant_id`, and **Row-Level Security** policies (enforced by Postgres) scope *every* read and write to the current tenant — so even a forgotten `WHERE`, a new query, or SQL-injection can't cross tenants. The app connects as a **non-superuser role** (superusers bypass RLS) and sets the tenant per request through one choke-point. No existing query changed; unset tenant → matches nothing (fail-closed).
+
+**Auth on every surface.** `tenants` + `users` tables hold identity (kept *outside* RLS — login must resolve the tenant before one is known). Login/register issue a **signed JWT carrying the tenant**; a single gate verifies it before any data endpoint runs — **including the destructive `/reset`**. The tenant comes from the token, never the URL. *(In production this layer would be a managed provider, e.g. Clerk; the boundary is unchanged.)*
+
+**Append-only decision log — planned.** The verdict becomes an insert-only event linked to its decision (re-resolving appends, never overwrites), so the trail survives an audit. Designed, not built — a working boundary plus a plan for the rest.
+
+**Proof — adversarial tests (own throwaway DB, safe to run anytime):**
+```bash
+npm run test:tenant   # cross-tenant read / update / delete / forge all blocked      (8/8)
+npm run test:auth     # login · wrong-password · tampered & garbage tokens · token→tenant (10/10)
+npm run test:e2e      # the REAL HTTP server: 401 gate · token-driven isolation · per-tenant reset (14/14)
+```
+
+> **Local vs production:** locally (PGlite, one serialized connection) the tenant is set at session scope and reset per request; in production (pooled Postgres) it's `SET LOCAL` inside a transaction so a pooled connection can't leak the previous tenant. Same policies, same SQL.
+
+---
 
 `npm run eval` scores the agent on the 3 CEO questions against ground truth.
